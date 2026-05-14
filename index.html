@@ -468,6 +468,12 @@ function setStatus(msg, on) {
   document.getElementById('dot').className = on ? 'on' : '';
 }
 loadData();
+
+// Auto refresh every 1 minute (60000 ms)
+setInterval(() => {
+  loadData();
+}, 60000);
+
 </script>
 </body>
 </html>
