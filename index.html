@@ -149,7 +149,7 @@ td{padding:9px 12px;vertical-align:middle;white-space:nowrap}
         <th onclick="sortBy('emp_name')">Name</th>
         <th onclick="sortBy('emp_dept')">Dept</th>
         <th onclick="sortBy('emp_shift')">Shift</th>
-        <th>Date</th>
+        <th onclick="sortBy('_date')">Date</th>
         <th>Tea 01</th>
         <th>Lunch</th>
         <th>Tea 02</th>
@@ -224,12 +224,29 @@ async function loadData() {
     }).filter(r => r.emp_no !== '');  // skip blank records
 
     populateFilters();
-    applyFilters();
+
+		// Default sort by newest date
+		sortCol = '_date';
+		sortDir = 1;
+
+		applyFilters();
     setStatus(`connected — ${allRecords.length} records`, true);
   } catch(e) {
     setState('error', e.message);
     setStatus('error', false);
   }
+}
+
+function parseDate(str) {
+  if (!str) return new Date(0);
+
+  const m = str.match(/([A-Za-z]+)(\d+)\s*(\d{4})/);
+
+  if (m) {
+    return new Date(`${m[1]} ${m[2]}, ${m[3]}`);
+  }
+
+  return new Date(str);
 }
 
 function extractDate(key, r) {
@@ -267,17 +284,35 @@ function applyFilters() {
     return true;
   });
 
-  f = [...f].sort((a,b) => {
-    const av = (a[sortCol]||'').toString().toLowerCase();
-    const bv = (b[sortCol]||'').toString().toLowerCase();
-    return av < bv ? -sortDir : av > bv ? sortDir : 0;
-  });
+f = [...f].sort((a,b) => {
+
+  if (sortCol === '_date') {
+    return (parseDate(b._date) - parseDate(a._date)) * sortDir;
+  }
+
+  const av = (a[sortCol] || '').toString().toLowerCase();
+  const bv = (b[sortCol] || '').toString().toLowerCase();
+
+  return av < bv ? -sortDir : av > bv ? sortDir : 0;
+});
 
   renderTable(f);
   updateStats(f);
   document.getElementById('rec-count').textContent = `${f.length} of ${allRecords.length} records`;
 }
 
+function parseDate(str) {
+  if (!str) return new Date(0);
+
+  // Handles formats like "May8 2026"
+  const m = str.match(/([A-Za-z]+)(\d+)\s*(\d{4})/);
+
+  if (m) {
+    return new Date(`${m[1]} ${m[2]}, ${m[3]}`);
+  }
+
+  return new Date(str);
+}
 function hasPending(r) {
   const checks = [
     [r['Tea 01'], r['Tea 01 Issued']],
