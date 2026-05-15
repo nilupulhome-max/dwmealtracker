@@ -998,9 +998,9 @@ async function doLogin() {
   err.textContent = ''; info.textContent = 'Authenticating…';
 
   try {
-    let data = await fbGet(`Users/${username}`);
-    if (!data) { err.textContent = 'User not found'; info.textContent = ''; return; }
-    if (typeof data === 'string') { try { data = JSON.parse(data); } catch(e) {} }
+    const raw = await fbGet(`Users/${username}`);
+    if (!raw) { err.textContent = 'User not found'; info.textContent = ''; return; }
+    const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
 
     if (String(data.password) !== String(pass)) {
       err.textContent = 'Wrong password'; info.textContent = ''; return;
@@ -1011,7 +1011,7 @@ async function doLogin() {
 
     const role = (data.role || 'Employee').toLowerCase();
     document.getElementById('topbar-user-pill').textContent =
-      `${username} · ${data.dept || ''} · ${(data.role || 'Employee').toUpperCase()}`;
+      `${username} · ${(data.role || 'Employee').toUpperCase()}`;
 
     const isAdmin   = role === 'admin';
     const isCanteen = role === 'canteen' || role === 'admin';
