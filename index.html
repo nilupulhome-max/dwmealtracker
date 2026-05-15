@@ -997,15 +997,11 @@ async function doLogin() {
   if (!empno || !pass) { err.textContent = 'Enter employee number and password'; return; }
   err.textContent = ''; info.textContent = 'Authenticating…';
 
-  try {
-    // Load employee by emp_no key
-    const emp = await fbGet(`${EMP_NODE}/${empno}`);
-    if (!emp) {
-      // Try parsing as JSON string (old format)
-      err.textContent = 'Employee not found'; info.textContent = ''; return;
-    }
-    // emp may be a JSON string or an object
-    const data = typeof emp === 'string' ? JSON.parse(emp) : emp;
+   try {
+    let data = await fbGet(`Users/${username}`);
+    if (!data) { err.textContent = 'User not found'; info.textContent = ''; return; }
+    if (typeof data === 'string') { try { data = JSON.parse(data); } catch(e) {} }
+
     if (String(data.password) !== String(pass)) {
       err.textContent = 'Wrong password'; info.textContent = ''; return;
     }
