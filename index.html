@@ -898,7 +898,7 @@ td { padding: 9px 12px; vertical-align: middle; white-space: nowrap; }
 // ═══════════════════════════════════════════
 const DB  = 'https://mealrequest-4a7b2-default-rtdb.firebaseio.com';
 const EMP_NODE = 'Employees';  // Firebase Employees node
-const REQ_NODE = 'MealRequests'; // Separate requests node
+const REQ_NODE = 'mealrequest'; // Separate requests node
 
 // ── Global State ──
 let currentUser = null;
@@ -990,34 +990,29 @@ function canRequestDinner() {
 // AUTH
 // ═══════════════════════════════════════════
 async function doLogin() {
-  const empno = document.getElementById('login-user').value.trim();
-  const pass  = document.getElementById('login-pass').value;
-  const err   = document.getElementById('login-err');
-  const info  = document.getElementById('login-info');
-  if (!empno || !pass) { err.textContent = 'Enter employee number and password'; return; }
+  const username = document.getElementById('login-user').value.trim();
+  const pass     = document.getElementById('login-pass').value;
+  const err      = document.getElementById('login-err');
+  const info     = document.getElementById('login-info');
+  if (!username || !pass) { err.textContent = 'Enter username and password'; return; }
   err.textContent = ''; info.textContent = 'Authenticating…';
 
   try {
-    // Load employee by emp_no key
-    const emp = await fbGet(`${EMP_NODE}/${empno}`);
-    if (!emp) {
-      // Try parsing as JSON string (old format)
-      err.textContent = 'Employee not found'; info.textContent = ''; return;
-    }
-    // emp may be a JSON string or an object
-    const data = typeof emp === 'string' ? JSON.parse(emp) : emp;
+    let data = await fbGet(`Users/${username}`);
+    if (!data) { err.textContent = 'User not found'; info.textContent = ''; return; }
+    if (typeof data === 'string') { try { data = JSON.parse(data); } catch(e) {} }
+
     if (String(data.password) !== String(pass)) {
       err.textContent = 'Wrong password'; info.textContent = ''; return;
     }
 
-    currentUser = { ...data, emp_no: String(empno) };
+    currentUser = { ...data, username };
     info.textContent = '';
 
     const role = (data.role || 'Employee').toLowerCase();
     document.getElementById('topbar-user-pill').textContent =
-      `${data.username || empno} · ${data.dept||''} · ${(data.role||'Employee').toUpperCase()}`;
+      `${username} · ${data.dept || ''} · ${(data.role || 'Employee').toUpperCase()}`;
 
-    // Show admin/canteen tabs
     const isAdmin   = role === 'admin';
     const isCanteen = role === 'canteen' || role === 'admin';
     document.getElementById('nav-users').style.display    = isAdmin   ? '' : 'none';
@@ -1031,6 +1026,7 @@ async function doLogin() {
     loadDashboard();
     loadUsers();
     updateRequestPage();
+
   } catch(e) {
     err.textContent = 'Connection error — ' + e.message;
     info.textContent = '';
@@ -1095,45 +1091,100 @@ function showPage(id, btn) {
 // DASHBOARD
 // ═══════════════════════════════════════════
 async function loadDashboard() {
-  document.getElementById('dash-state').innerHTML = '<span class="empty-icon">⏳</span>Loading records…';
+
+  document.getElementById('dash-state').innerHTML =
+    '<span class=\"empty-icon\">⏳</span>Loading records…';
+
   document.getElementById('dash-state').style.display = 'block';
   document.getElementById('dash-table').style.display = 'none';
-  try {
-    const data = await fbGet(REQ_NODE);
-    if (!data) { allRecords = []; renderTable([]); updateStats([]); return; }
 
-    allRecords = Object.entries(data).flatMap(([empKey, dateMap]) => {
-      if (typeof dateMap !== 'object') return [];
-      return Object.entries(dateMap).map(([dateKey, rec]) => {
-        if (!rec || typeof rec !== 'object') return null;
-        rec._key    = `${empKey}/${dateKey}`;
-        rec._empKey = empKey;
-        rec._dateKey = dateKey;
-        rec._date   = dateKey.replace(/_/g,' ');
-        rec.emp_no  = rec.emp_no  || empKey;
-        rec.emp_name  = rec.emp_name  || '';
-        rec.emp_dept  = rec.emp_dept  || '';
-        rec.emp_shift = rec.emp_shift || '';
-        rec['Tea 01']    = rec['Tea 01']    || 'No';
-        rec['Tea 02']    = rec['Tea 02']    || 'No';
-        rec['Lunch']     = rec['Lunch']     || 'No';
-        rec['Breakfast'] = rec['Breakfast'] || 'No';
-        rec['Dinner']    = rec['Dinner']    || 'No';
-        rec['Tea 01 Issued']    = rec['Tea 01 Issued']    || 'No';
-        rec['Tea 02 Issued']    = rec['Tea 02 Issued']    || 'No';
-        rec['Lunch Issued']     = rec['Lunch Issued']     || 'No';
-        rec['Breakfast Issued'] = rec['Breakfast Issued'] || 'No';
-        rec['Dinner Issued']    = rec['Dinner Issued']    || 'No';
-        return rec;
-      }).filter(Boolean);
+  try {
+
+    const data = await fbGet(REQ_NODE);
+
+    if (!data) {
+      allRecords = [];
+      renderTable([]);
+      updateStats([]);
+      return;
+    }
+
+    let records = [];
+
+    Object.entries(data).forEach(([key, val]) => {
+
+      // NESTED STRUCTURE
+      if (typeof val === 'object' && !val.emp_no) {
+
+        Object.entries(val).forEach(([dateKey, rec]) => {
+
+          if (!rec || typeof rec !== 'object') return;
+
+          rec._key = `${key}/${dateKey}`;
+          rec._empKey = key;
+          rec._dateKey = dateKey;
+          rec._date = dateKey.replace(/_/g,' ');
+
+          normalizeRecord(rec, key);
+
+          records.push(rec);
+
+        });
+
+      }
+
+      // FLAT STRUCTURE
+      else {
+
+        let r = val;
+
+        if (typeof r === 'string') {
+          try { r = JSON.parse(r); }
+          catch(e){ return; }
+        }
+
+        r._key = key;
+        r._empKey = r.emp_no || key;
+        r._dateKey = key;
+        r._date = r.date_display || key.replace(/_/g,' ');
+
+        normalizeRecord(r, key);
+
+        records.push(r);
+      }
+
     });
+
+    allRecords = records.filter(r => r.emp_no !== '');
 
     populateFilters();
     applyFilters();
-  } catch(e) {
-    document.getElementById('dash-state').innerHTML = `<span class="empty-icon">⚠</span>Load error: ${e.message}`;
+
+  }
+
+  catch(e) {
+
+    console.error(e);
+
+    document.getElementById('dash-state').innerHTML =
+      `<span class=\"empty-icon\">⚠</span>Load error: ${e.message}`;
+
     document.getElementById('dash-state').style.display = 'block';
   }
+}
+
+function normalizeRecord(r, fallbackKey='') {
+
+  r.emp_no = r.emp_no || fallbackKey || '';
+  r.emp_name = r.emp_name || '';
+  r.emp_dept = r.emp_dept || '';
+  r.emp_shift = r.emp_shift || '';
+
+  ['Tea 01','Tea 02','Lunch','Breakfast','Dinner']
+    .forEach(f => r[f] = r[f] || 'No');
+
+  ['Tea 01 Issued','Tea 02 Issued','Lunch Issued','Breakfast Issued','Dinner Issued']
+    .forEach(f => r[f] = r[f] || 'No');
 }
 
 function parseDateStr(str) {
