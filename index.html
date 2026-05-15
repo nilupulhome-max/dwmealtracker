@@ -990,14 +990,14 @@ function canRequestDinner() {
 // AUTH
 // ═══════════════════════════════════════════
 async function doLogin() {
-  const empno = document.getElementById('login-user').value.trim();
-  const pass  = document.getElementById('login-pass').value;
-  const err   = document.getElementById('login-err');
-  const info  = document.getElementById('login-info');
-  if (!empno || !pass) { err.textContent = 'Enter employee number and password'; return; }
+  const username = document.getElementById('login-user').value.trim();
+  const pass     = document.getElementById('login-pass').value;
+  const err      = document.getElementById('login-err');
+  const info     = document.getElementById('login-info');
+  if (!username || !pass) { err.textContent = 'Enter username and password'; return; }
   err.textContent = ''; info.textContent = 'Authenticating…';
 
-   try {
+  try {
     let data = await fbGet(`Users/${username}`);
     if (!data) { err.textContent = 'User not found'; info.textContent = ''; return; }
     if (typeof data === 'string') { try { data = JSON.parse(data); } catch(e) {} }
@@ -1006,14 +1006,13 @@ async function doLogin() {
       err.textContent = 'Wrong password'; info.textContent = ''; return;
     }
 
-    currentUser = { ...data, emp_no: String(empno) };
+    currentUser = { ...data, username };
     info.textContent = '';
 
     const role = (data.role || 'Employee').toLowerCase();
     document.getElementById('topbar-user-pill').textContent =
-      `${data.username || empno} · ${data.dept||''} · ${(data.role||'Employee').toUpperCase()}`;
+      `${username} · ${data.dept || ''} · ${(data.role || 'Employee').toUpperCase()}`;
 
-    // Show admin/canteen tabs
     const isAdmin   = role === 'admin';
     const isCanteen = role === 'canteen' || role === 'admin';
     document.getElementById('nav-users').style.display    = isAdmin   ? '' : 'none';
@@ -1027,6 +1026,7 @@ async function doLogin() {
     loadDashboard();
     loadUsers();
     updateRequestPage();
+
   } catch(e) {
     err.textContent = 'Connection error — ' + e.message;
     info.textContent = '';
