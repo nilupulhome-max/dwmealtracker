@@ -898,7 +898,7 @@ td { padding: 9px 12px; vertical-align: middle; white-space: nowrap; }
 // ═══════════════════════════════════════════
 const DB  = 'https://mealrequest-4a7b2-default-rtdb.firebaseio.com';
 const EMP_NODE = 'Employees';  // Firebase Employees node
-const REQ_NODE = 'mealrequests'; // Separate requests node
+const REQ_NODE = 'MealRequests'; // Separate requests node
 
 // ── Global State ──
 let currentUser = null;
@@ -990,29 +990,34 @@ function canRequestDinner() {
 // AUTH
 // ═══════════════════════════════════════════
 async function doLogin() {
-  const username = document.getElementById('login-user').value.trim();
-  const pass     = document.getElementById('login-pass').value;
-  const err      = document.getElementById('login-err');
-  const info     = document.getElementById('login-info');
-  if (!username || !pass) { err.textContent = 'Enter username and password'; return; }
+  const empno = document.getElementById('login-user').value.trim();
+  const pass  = document.getElementById('login-pass').value;
+  const err   = document.getElementById('login-err');
+  const info  = document.getElementById('login-info');
+  if (!empno || !pass) { err.textContent = 'Enter employee number and password'; return; }
   err.textContent = ''; info.textContent = 'Authenticating…';
 
   try {
-    const raw = await fbGet(`Users/${username}`);
-    if (!raw) { err.textContent = 'User not found'; info.textContent = ''; return; }
-    const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
-
+    // Load employee by emp_no key
+    const emp = await fbGet(`${EMP_NODE}/${empno}`);
+    if (!emp) {
+      // Try parsing as JSON string (old format)
+      err.textContent = 'Employee not found'; info.textContent = ''; return;
+    }
+    // emp may be a JSON string or an object
+    const data = typeof emp === 'string' ? JSON.parse(emp) : emp;
     if (String(data.password) !== String(pass)) {
       err.textContent = 'Wrong password'; info.textContent = ''; return;
     }
 
-    currentUser = { ...data, username };
+    currentUser = { ...data, emp_no: String(empno) };
     info.textContent = '';
 
     const role = (data.role || 'Employee').toLowerCase();
     document.getElementById('topbar-user-pill').textContent =
-      `${username} · ${(data.role || 'Employee').toUpperCase()}`;
+      `${data.username || empno} · ${data.dept||''} · ${(data.role||'Employee').toUpperCase()}`;
 
+    // Show admin/canteen tabs
     const isAdmin   = role === 'admin';
     const isCanteen = role === 'canteen' || role === 'admin';
     document.getElementById('nav-users').style.display    = isAdmin   ? '' : 'none';
@@ -1026,7 +1031,6 @@ async function doLogin() {
     loadDashboard();
     loadUsers();
     updateRequestPage();
-
   } catch(e) {
     err.textContent = 'Connection error — ' + e.message;
     info.textContent = '';
@@ -1098,21 +1102,31 @@ async function loadDashboard() {
     const data = await fbGet(REQ_NODE);
     if (!data) { allRecords = []; renderTable([]); updateStats([]); return; }
 
-    allRecords = Object.entries(data).map(([key, val]) => {
-      let r = typeof val === 'string' ? JSON.parse(val) : val;
-      r._key      = key;
-      r._empKey   = r.emp_no || key;
-      r._dateKey  = key;
-      r._date     = r.date_display || key.replace(/_/g,' ');
-      r.emp_no    = r.emp_no    || '';
-      r.emp_name  = r.emp_name  || '';
-      r.emp_dept  = r.emp_dept  || '';
-      r.emp_shift = r.emp_shift || '';
-      ['Tea 01','Tea 02','Lunch','Breakfast','Dinner'].forEach(f => { r[f] = r[f] || 'No'; });
-      ['Tea 01 Issued','Tea 02 Issued','Lunch Issued','Breakfast Issued','Dinner Issued']
-        .forEach(f => { r[f] = r[f] || 'No'; });
-      return r;
-    }).filter(r => r.emp_no !== '');
+    allRecords = Object.entries(data).flatMap(([empKey, dateMap]) => {
+      if (typeof dateMap !== 'object') return [];
+      return Object.entries(dateMap).map(([dateKey, rec]) => {
+        if (!rec || typeof rec !== 'object') return null;
+        rec._key    = `${empKey}/${dateKey}`;
+        rec._empKey = empKey;
+        rec._dateKey = dateKey;
+        rec._date   = dateKey.replace(/_/g,' ');
+        rec.emp_no  = rec.emp_no  || empKey;
+        rec.emp_name  = rec.emp_name  || '';
+        rec.emp_dept  = rec.emp_dept  || '';
+        rec.emp_shift = rec.emp_shift || '';
+        rec['Tea 01']    = rec['Tea 01']    || 'No';
+        rec['Tea 02']    = rec['Tea 02']    || 'No';
+        rec['Lunch']     = rec['Lunch']     || 'No';
+        rec['Breakfast'] = rec['Breakfast'] || 'No';
+        rec['Dinner']    = rec['Dinner']    || 'No';
+        rec['Tea 01 Issued']    = rec['Tea 01 Issued']    || 'No';
+        rec['Tea 02 Issued']    = rec['Tea 02 Issued']    || 'No';
+        rec['Lunch Issued']     = rec['Lunch Issued']     || 'No';
+        rec['Breakfast Issued'] = rec['Breakfast Issued'] || 'No';
+        rec['Dinner Issued']    = rec['Dinner Issued']    || 'No';
+        return rec;
+      }).filter(Boolean);
+    });
 
     populateFilters();
     applyFilters();
@@ -1380,18 +1394,19 @@ async function submitRequest() {
   }
 
   const todayKey  = keyDate(now());
-  const recKey = `${empno}_${shift}_${todayKey}`;
+  const recKey    = todayKey;
   const now2      = displayDate(now());
   const tomDisp   = displayDate(tomorrow());
 
   showStatus(status, 'Checking for existing record…', 'info');
 
-const existing = await fbGet(`${REQ_NODE}/${recKey}`);
-if (existing) {
-  showStatus(status, `⚠ Request already submitted for ${name} today. Cannot submit again.`, 'error');
-  return;
-}
-
+  try {
+    // Check if today's record already exists
+    const existing = await fbGet(`${REQ_NODE}/${empno}/${recKey}`);
+    if (existing) {
+      showStatus(status, `⚠ Request already submitted for ${name} today (${now2}). Cannot submit again.`, 'error');
+      return;
+    }
 
     // Build record
     const record = {
@@ -1417,7 +1432,7 @@ if (existing) {
       record['Sun Dinner Issued']    = 'No';
     }
 
-    await fbSet(`${REQ_NODE}/${recKey}`, record);
+    await fbSet(`${REQ_NODE}/${empno}/${recKey}`, record);
     showStatus(status, `✓ Request saved — ${name} · ${shift} shift · ${now2}`, 'success');
 
     // Cache locally
@@ -1480,35 +1495,37 @@ async function searchIssue() {
   div.innerHTML = '<div class="empty"><span class="empty-icon">⏳</span>Searching…</div>';
 
   const todayKey = keyDate(now());
-  const shifts = ['A','B','G'];
-  let found = null;
 
-  // Check today's records in local cache first
-  for (const sh of shifts) {
-    const key = `${empno}_${sh}_${todayKey}`;
-    found = allRecords.find(r => r._key === key);
-    if (found) break;
-  }
+  // First check local cache
+  let found = allRecords.find(r => r._empKey === empno && r._dateKey === todayKey);
 
-  // Fallback: fetch directly from DB
+  // If not in cache, fetch from DB
   if (!found) {
-    for (const sh of shifts) {
-      const key = `${empno}_${sh}_${todayKey}`;
-      try {
-        const rec = await fbGet(`${REQ_NODE}/${key}`);
-        if (rec) {
-          found = { ...rec, _key: key, _date: todayKey.replace(/_/g,' ') };
-          ['Tea 01','Tea 02','Lunch','Breakfast','Dinner'].forEach(f => { found[f] = found[f]||'No'; });
-          ['Tea 01 Issued','Tea 02 Issued','Lunch Issued','Breakfast Issued','Dinner Issued']
-            .forEach(f => { found[f] = found[f]||'No'; });
-          break;
-        }
-      } catch(e) {}
-    }
+    try {
+      const rec = await fbGet(`${REQ_NODE}/${empno}/${todayKey}`);
+      if (rec) {
+        found = {
+          ...rec, _key: `${empno}/${todayKey}`,
+          _empKey: empno, _dateKey: todayKey,
+          _date: todayKey.replace(/_/g,' ')
+        };
+        // Normalize
+        found.emp_no = found.emp_no || empno;
+        ['Tea 01','Tea 02','Lunch','Breakfast','Dinner'].forEach(f => { found[f] = found[f] || 'No'; });
+        ['Tea 01 Issued','Tea 02 Issued','Lunch Issued','Breakfast Issued','Dinner Issued'].forEach(f => { found[f] = found[f] || 'No'; });
+      }
+    } catch(e) {}
   }
 
   if (!found) {
-    div.innerHTML = `<div class="empty"><span class="empty-icon">🔍</span>No record found for <strong style="color:var(--green)">#${esc(empno)}</strong> today.</div>`;
+    // Try most recent record
+    const recs = allRecords.filter(r => r.emp_no === empno || r._empKey === empno)
+      .sort((a,b) => parseDateStr(b._date) - parseDateStr(a._date));
+    if (recs.length) found = recs[0];
+  }
+
+  if (!found) {
+    div.innerHTML = `<div class="empty"><span class="empty-icon">🔍</span>No record found for employee <strong style="color:var(--green)">${esc(empno)}</strong> today.<br><br><span style="font-size:10px">Use ⬇ GET to fetch from database</span></div>`;
     return;
   }
   renderIssueCard(found, div);
@@ -1564,6 +1581,8 @@ async function issueItem(key, field, btn) {
     await fbSet(`${REQ_NODE}/${key}/${field}`, 'Yes');
     btn.textContent = '✓ Issued';
     btn.className = 'meal-issue-btn mib-issued';
+    btn.disabled = true;
+    // Update local cache
     const rec = allRecords.find(r => r._key === key);
     if (rec) rec[field] = 'Yes';
   } catch(e) {
