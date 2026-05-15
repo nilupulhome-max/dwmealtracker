@@ -4,220 +4,610 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>MealTrack Pro</title>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;500;600;700;800&display=swap');
 
 :root {
-  --bg: #0f0f0f;
-  --surface: #1a1a1a;
-  --surface2: #242424;
-  --border: #2e2e2e;
-  --text: #e8e4dc;
-  --muted: #6b6659;
-  --accent: #4ade80;
-  --accent-dim: #1a3d26;
-  --amber: #f59e0b;
-  --amber-dim: #3d2a00;
-  --red: #ef4444;
-  --red-dim: #3d0f0f;
-  --blue: #60a5fa;
-  --blue-dim: #0f2040;
-  --purple: #a78bfa;
-  --mono: 'IBM Plex Mono', monospace;
-  --sans: 'IBM Plex Sans', sans-serif;
+  --bg:      #0a0b0d;
+  --bg2:     #0f1115;
+  --panel:   #141619;
+  --panel2:  #191c21;
+  --border:  #232730;
+  --border2: #2d3240;
+  --text:    #e2e4ea;
+  --muted:   #5a6175;
+  --dim:     #353d52;
+  --green:   #00e5a0;
+  --green-bg:#001f15;
+  --amber:   #f5a623;
+  --amber-bg:#1f1200;
+  --red:     #ff4d6d;
+  --red-bg:  #1f0010;
+  --blue:    #4dabf7;
+  --blue-bg: #001828;
+  --purple:  #be8fff;
+  --purple-bg:#140a2a;
+  --cyan:    #00d8ff;
+  --mono: 'Space Mono', monospace;
+  --sans: 'Syne', sans-serif;
+  --r: 8px;
 }
 
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── GRAIN OVERLAY ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9999;
+  opacity: .6;
+}
 
 /* ── SCREENS ── */
-.screen{display:none;min-height:100vh;flex-direction:column}
-.screen.active{display:flex}
+.screen { display: none; min-height: 100vh; }
+.screen.active { display: flex; flex-direction: column; }
 
-/* ── LOGIN ── */
-#screen-login{align-items:center;justify-content:center;background:var(--bg)}
-.login-wrap{width:100%;max-width:380px;padding:2rem}
-.login-logo{font-family:var(--mono);font-size:1.5rem;font-weight:600;color:var(--accent);margin-bottom:.3rem;letter-spacing:-.02em}
-.login-sub{font-size:12px;color:var(--muted);margin-bottom:2.5rem;font-family:var(--mono)}
-.field{margin-bottom:1rem}
-.field label{display:block;font-size:11px;font-family:var(--mono);color:var(--muted);margin-bottom:5px;letter-spacing:.06em;text-transform:uppercase}
-.field input,.field select{width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:13px;padding:10px 14px;border-radius:6px;outline:none;transition:border .2s}
-.field input:focus,.field select:focus{border-color:var(--accent)}
-.login-btn{width:100%;padding:12px;background:var(--accent);color:#0f0f0f;font-family:var(--mono);font-size:13px;font-weight:600;border:none;border-radius:6px;cursor:pointer;transition:opacity .2s;margin-top:.5rem}
-.login-btn:hover{opacity:.85}
-.login-err{font-family:var(--mono);font-size:12px;color:var(--red);margin-top:10px;min-height:18px}
-.login-loading{font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:8px}
+/* ══════════════════════════════════════
+   LOGIN
+══════════════════════════════════════ */
+#screen-login {
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  position: relative;
+  overflow: hidden;
+}
 
-/* ── APP SHELL ── */
-#screen-app{flex-direction:column}
-.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 1.5rem;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;flex-shrink:0}
-.topbar-logo{font-family:var(--mono);font-size:.95rem;font-weight:600;color:var(--accent)}
-.topbar-user{font-family:var(--mono);font-size:11px;color:var(--muted);display:flex;align-items:center;gap:12px}
-.logout-btn{background:none;border:1px solid var(--border);color:var(--muted);font-family:var(--mono);font-size:10px;padding:4px 10px;border-radius:4px;cursor:pointer}
-.logout-btn:hover{border-color:var(--red);color:var(--red)}
+#screen-login::after {
+  content: '';
+  position: absolute;
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, rgba(0,229,160,.06) 0%, transparent 70%);
+  top: -200px; left: -200px;
+  pointer-events: none;
+}
+
+.login-wrap {
+  width: 100%; max-width: 400px;
+  padding: 2.5rem 2rem;
+  position: relative; z-index: 1;
+}
+
+.login-logo-row {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 2rem;
+}
+.login-logo-icon {
+  width: 40px; height: 40px;
+  background: var(--green);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+.login-logo-text { font-family: var(--sans); font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; }
+.login-logo-text span { color: var(--green); }
+.login-tagline { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: .1em; margin-bottom: 2.5rem; }
+
+.lfield { margin-bottom: 1.25rem; }
+.lfield label { display: block; font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
+.lfield input {
+  width: 100%;
+  background: var(--panel);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  padding: 11px 14px;
+  border-radius: var(--r);
+  outline: none;
+  transition: border .2s, box-shadow .2s;
+}
+.lfield input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(0,229,160,.1); }
+
+.login-btn {
+  width: 100%;
+  padding: 13px;
+  background: var(--green);
+  color: #0a0b0d;
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 700;
+  border: none;
+  border-radius: var(--r);
+  cursor: pointer;
+  transition: opacity .2s, transform .1s;
+  margin-top: .5rem;
+  letter-spacing: .03em;
+}
+.login-btn:hover { opacity: .88; }
+.login-btn:active { transform: scale(.98); }
+.login-err { font-family: var(--mono); font-size: 11px; color: var(--red); margin-top: 10px; min-height: 18px; }
+.login-info { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 6px; }
+
+/* ══════════════════════════════════════
+   APP SHELL
+══════════════════════════════════════ */
+.topbar {
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  height: 56px;
+  display: flex; align-items: center;
+  justify-content: space-between;
+  padding: 0 1.5rem;
+  position: sticky; top: 0; z-index: 100;
+  flex-shrink: 0;
+}
+.topbar-brand { display: flex; align-items: center; gap: 10px; }
+.topbar-icon {
+  width: 28px; height: 28px;
+  background: var(--green);
+  border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+}
+.topbar-name { font-family: var(--sans); font-weight: 800; font-size: 1rem; letter-spacing: -.01em; }
+.topbar-name span { color: var(--green); }
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+.topbar-user-pill {
+  font-family: var(--mono); font-size: 10px; color: var(--muted);
+  background: var(--panel2); border: 1px solid var(--border);
+  padding: 4px 10px; border-radius: 20px;
+}
+.logout-btn {
+  font-family: var(--mono); font-size: 10px;
+  background: none; border: 1px solid var(--border);
+  color: var(--muted); padding: 4px 10px; border-radius: 5px; cursor: pointer;
+  transition: all .15s; letter-spacing: .04em;
+}
+.logout-btn:hover { border-color: var(--red); color: var(--red); }
 
 /* ── NAV ── */
-.nav{background:var(--surface);border-bottom:1px solid var(--border);display:flex;overflow-x:auto;flex-shrink:0}
-.nav::-webkit-scrollbar{display:none}
-.nav-btn{padding:12px 18px;font-family:var(--mono);font-size:11px;border:none;background:none;color:var(--muted);cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;transition:all .15s;letter-spacing:.04em}
-.nav-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
-.nav-btn:hover{color:var(--text)}
+.nav {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  display: flex; overflow-x: auto; flex-shrink: 0;
+}
+.nav::-webkit-scrollbar { display: none; }
+.nav-btn {
+  padding: 14px 20px;
+  font-family: var(--sans); font-size: 12px; font-weight: 600;
+  border: none; background: none;
+  color: var(--muted); cursor: pointer;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  transition: all .15s; letter-spacing: .02em;
+}
+.nav-btn.active { color: var(--green); border-bottom-color: var(--green); }
+.nav-btn:hover:not(.active) { color: var(--text); }
 
 /* ── CONTENT ── */
-.content{flex:1;overflow-y:auto}
-.page{display:none;padding:1.5rem}
-.page.active{display:block}
+.content { flex: 1; overflow-y: auto; }
+.page { display: none; padding: 1.5rem; }
+.page.active { display: block; }
 
-/* ── STATS BAR ── */
-.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:1px;background:var(--border);margin-bottom:1.5rem;border-radius:8px;overflow:hidden}
-.stat-box{background:var(--surface);padding:12px 14px;text-align:center}
-.stat-num{font-family:var(--mono);font-size:1.6rem;font-weight:600;line-height:1}
-.stat-lbl{font-size:9px;color:var(--muted);margin-top:3px;letter-spacing:.06em;text-transform:uppercase}
-.c-green{color:var(--accent)}.c-amber{color:var(--amber)}.c-red{color:var(--red)}.c-blue{color:var(--blue)}.c-purple{color:var(--purple)}
+/* ══════════════════════════════════════
+   STATS
+══════════════════════════════════════ */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 1px;
+  background: var(--border);
+  border-radius: 10px; overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+.stat-box {
+  background: var(--panel);
+  padding: 14px 12px;
+  text-align: center;
+  transition: background .15s;
+}
+.stat-box:hover { background: var(--panel2); }
+.stat-num { font-family: var(--mono); font-size: 1.8rem; font-weight: 700; line-height: 1; }
+.stat-lbl { font-size: 9px; color: var(--muted); margin-top: 4px; letter-spacing: .07em; text-transform: uppercase; font-family: var(--mono); }
+.c-green { color: var(--green); }
+.c-amber { color: var(--amber); }
+.c-red   { color: var(--red); }
+.c-blue  { color: var(--blue); }
+.c-purple { color: var(--purple); }
+.c-cyan  { color: var(--cyan); }
 
-/* ── TOOLBAR ── */
-.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem;align-items:center}
-.toolbar input,.toolbar select{background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:11px;padding:7px 10px;border-radius:5px;outline:none}
-.toolbar input:focus,.toolbar select:focus{border-color:var(--accent)}
-.toolbar input{width:180px}
-.lbl{font-family:var(--mono);font-size:11px;color:var(--muted);margin-left:auto}
+/* ══════════════════════════════════════
+   TOOLBAR
+══════════════════════════════════════ */
+.toolbar {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 1rem; align-items: center;
+}
+.toolbar input, .toolbar select {
+  background: var(--panel);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  font-family: var(--mono); font-size: 11px;
+  padding: 7px 10px; border-radius: 6px; outline: none;
+  transition: border .2s;
+}
+.toolbar input:focus, .toolbar select:focus { border-color: var(--green); }
+.toolbar input { width: 180px; }
+.lbl { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-left: auto; }
 
-/* ── TABLE ── */
-.tbl-wrap{overflow-x:auto;border-radius:8px;border:1px solid var(--border)}
-table{width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono)}
-thead{background:var(--surface2)}
-thead th{padding:9px 12px;text-align:left;font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);white-space:nowrap;cursor:pointer;border-bottom:1px solid var(--border)}
-thead th:hover{color:var(--text)}
-tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
-tbody tr:last-child{border-bottom:none}
-tbody tr:hover{background:var(--surface)}
-td{padding:9px 12px;vertical-align:middle;white-space:nowrap}
-.emp-id{color:var(--accent);font-weight:600}
+/* ══════════════════════════════════════
+   TABLE
+══════════════════════════════════════ */
+.tbl-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; font-size: 11px; font-family: var(--mono); }
+thead { background: var(--panel2); }
+thead th {
+  padding: 10px 12px; text-align: left;
+  font-size: 9px; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--muted); white-space: nowrap; cursor: pointer;
+  border-bottom: 1px solid var(--border); transition: color .15s;
+}
+thead th:hover { color: var(--text); }
+tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--panel); }
+td { padding: 9px 12px; vertical-align: middle; white-space: nowrap; }
+.emp-id { color: var(--green); font-weight: 700; }
 
-/* ── BADGES ── */
-.badge{display:inline-block;padding:2px 7px;border-radius:3px;font-size:9px;font-weight:600;font-family:var(--mono);letter-spacing:.04em}
-.bv-milk{background:var(--amber-dim);color:var(--amber)}.bv-plain{background:var(--blue-dim);color:var(--blue)}
-.bv-yes{background:var(--accent-dim);color:var(--accent)}.bv-no{background:#1e1e1e;color:#444}
-.bv-issued{background:var(--accent-dim);color:var(--accent);border:1px solid #1a3d26}
-.bv-pending{background:var(--amber-dim);color:var(--amber)}.bv-skip{color:#333}
-.bv-red{background:var(--red-dim);color:var(--red)}
+/* ══════════════════════════════════════
+   BADGES
+══════════════════════════════════════ */
+.badge {
+  display: inline-block; padding: 2px 8px; border-radius: 4px;
+  font-size: 9px; font-weight: 700; font-family: var(--mono);
+  letter-spacing: .04em;
+}
+.bv-milk   { background: var(--amber-bg); color: var(--amber); border: 1px solid rgba(245,166,35,.2); }
+.bv-plain  { background: var(--blue-bg);  color: var(--blue);  border: 1px solid rgba(77,171,247,.2); }
+.bv-yes    { background: var(--green-bg); color: var(--green); border: 1px solid rgba(0,229,160,.2); }
+.bv-no     { background: #111; color: #333; border: 1px solid #1a1a1a; }
+.bv-issued { background: var(--green-bg); color: var(--green); border: 1px solid rgba(0,229,160,.3); }
+.bv-pending { background: var(--amber-bg); color: var(--amber); border: 1px solid rgba(245,166,35,.25); }
+.bv-red    { background: var(--red-bg); color: var(--red); border: 1px solid rgba(255,77,109,.2); }
+.bv-admin  { background: var(--purple-bg); color: var(--purple); border: 1px solid rgba(190,143,255,.2); }
+.bv-canteen { background: var(--blue-bg); color: var(--blue); border: 1px solid rgba(77,171,247,.2); }
+.bv-cyan   { background: rgba(0,216,255,.08); color: var(--cyan); border: 1px solid rgba(0,216,255,.2); }
 
-/* ── CARDS ── */
-.card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1.25rem;margin-bottom:1rem}
-.card-title{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:1rem}
+/* ══════════════════════════════════════
+   CARDS
+══════════════════════════════════════ */
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+.card-title {
+  font-family: var(--sans); font-size: 11px; font-weight: 700;
+  color: var(--muted); letter-spacing: .08em; text-transform: uppercase;
+  margin-bottom: 1rem; display: flex; align-items: center; gap: 8px;
+}
+.card-title-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--green);
+}
 
-/* ── FORM ELEMENTS ── */
-.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.form-grid.one{grid-template-columns:1fr}
-@media(max-width:480px){.form-grid{grid-template-columns:1fr}}
-.form-field{display:flex;flex-direction:column;gap:5px}
-.form-field label{font-size:10px;font-family:var(--mono);color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
-.form-field input,.form-field select{background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:12px;padding:8px 12px;border-radius:5px;outline:none;transition:border .2s}
-.form-field input:focus,.form-field select:focus{border-color:var(--accent)}
+/* ══════════════════════════════════════
+   FORM ELEMENTS
+══════════════════════════════════════ */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-grid.one { grid-template-columns: 1fr; }
+.form-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+@media(max-width: 520px) { .form-grid, .form-grid.three { grid-template-columns: 1fr; } }
 
-/* ── TOGGLE BUTTONS ── */
-.toggle-group{display:flex;gap:6px;flex-wrap:wrap}
-.tgl{padding:6px 14px;border-radius:4px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-family:var(--mono);font-size:11px;cursor:pointer;transition:all .15s}
-.tgl.active-milk{background:var(--amber-dim);border-color:var(--amber);color:var(--amber)}
-.tgl.active-plain{background:var(--blue-dim);border-color:var(--blue);color:var(--blue)}
-.tgl.active-yes{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
-.tgl.active-no{background:#1e1e1e;border-color:#333;color:#555}
+.form-field { display: flex; flex-direction: column; gap: 5px; }
+.form-field label {
+  font-size: 10px; font-family: var(--mono);
+  color: var(--muted); letter-spacing: .07em; text-transform: uppercase;
+}
+.form-field input, .form-field select {
+  background: var(--panel2); border: 1px solid var(--border2);
+  color: var(--text); font-family: var(--mono); font-size: 12px;
+  padding: 9px 12px; border-radius: 6px; outline: none; transition: border .2s, box-shadow .2s;
+}
+.form-field input:focus, .form-field select:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(0,229,160,.08);
+}
+.form-field input[readonly] { opacity: .5; cursor: default; }
 
-/* ── BUTTONS ── */
-.btn-primary{background:var(--accent);color:#0f0f0f;font-family:var(--mono);font-size:12px;font-weight:600;padding:9px 20px;border:none;border-radius:5px;cursor:pointer;transition:opacity .15s}
-.btn-primary:hover{opacity:.85}
-.btn-secondary{background:var(--surface2);color:var(--text);font-family:var(--mono);font-size:12px;padding:9px 20px;border:1px solid var(--border);border-radius:5px;cursor:pointer}
-.btn-secondary:hover{border-color:var(--text)}
-.btn-danger{background:var(--red-dim);color:var(--red);font-family:var(--mono);font-size:11px;padding:6px 14px;border:1px solid var(--red-dim);border-radius:4px;cursor:pointer}
-.btn-row{display:flex;gap:8px;margin-top:1rem;align-items:center;flex-wrap:wrap}
+/* ── INPUT WITH BUTTON INLINE ── */
+.input-btn-row { display: flex; gap: 6px; }
+.input-btn-row input { flex: 1; }
 
-/* ── ISSUE PANEL ── */
-.issue-search-row{display:flex;gap:8px;margin-bottom:1.5rem}
-.issue-search-row input{flex:1;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:13px;padding:10px 14px;border-radius:6px;outline:none}
-.issue-search-row input:focus{border-color:var(--accent)}
-.issue-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1.25rem}
-.issue-emp-name{font-size:15px;font-weight:600;font-family:var(--mono);color:var(--text)}
-.issue-emp-sub{font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:3px;margin-bottom:1rem}
-.meal-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
-.meal-box{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center}
-.meal-box-lbl{font-size:9px;color:var(--muted);font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px}
-.meal-box-val{font-size:12px;font-weight:600;font-family:var(--mono);margin-bottom:8px}
-.meal-issue-btn{width:100%;padding:5px;border-radius:4px;font-size:10px;font-weight:600;font-family:var(--mono);border:none;cursor:pointer;transition:all .15s}
-.mib-pending{background:var(--amber-dim);color:var(--amber);border:1px solid #5c3d00}
-.mib-issued{background:var(--accent-dim);color:var(--accent);cursor:default}
-.mib-notreq{background:#111;color:#333;cursor:default}
-.board-sep{font-size:10px;color:var(--amber);font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase;margin:1rem 0 .5rem;padding-top:1rem;border-top:1px dashed var(--border)}
+/* ══════════════════════════════════════
+   TOGGLE BUTTONS
+══════════════════════════════════════ */
+.toggle-group { display: flex; gap: 6px; flex-wrap: wrap; }
+.tgl {
+  padding: 7px 14px; border-radius: 5px;
+  border: 1px solid var(--border2); background: var(--panel2);
+  color: var(--muted); font-family: var(--mono); font-size: 11px;
+  cursor: pointer; transition: all .15s; font-weight: 700;
+}
+.tgl:hover { border-color: var(--dim); color: var(--text); }
+.tgl.active-milk   { background: var(--amber-bg); border-color: var(--amber); color: var(--amber); }
+.tgl.active-plain  { background: var(--blue-bg);  border-color: var(--blue);  color: var(--blue); }
+.tgl.active-yes    { background: var(--green-bg); border-color: var(--green); color: var(--green); }
+.tgl.active-no     { background: #131313; border-color: #222; color: #3a3a3a; }
 
-/* ── STATUS MSG ── */
-.status-msg{font-family:var(--mono);font-size:12px;padding:8px 12px;border-radius:5px;margin-top:10px}
-.sm-success{background:var(--accent-dim);color:var(--accent)}
-.sm-error{background:var(--red-dim);color:var(--red)}
-.sm-info{background:var(--blue-dim);color:var(--blue)}
+/* ══════════════════════════════════════
+   BUTTONS
+══════════════════════════════════════ */
+.btn-primary {
+  background: var(--green); color: #0a0b0d;
+  font-family: var(--sans); font-size: 13px; font-weight: 700;
+  padding: 10px 22px; border: none; border-radius: 6px;
+  cursor: pointer; transition: opacity .15s, transform .1s; letter-spacing: .02em;
+}
+.btn-primary:hover { opacity: .86; }
+.btn-primary:active { transform: scale(.97); }
 
-/* ── EMPTY STATE ── */
-.empty{text-align:center;padding:3rem;color:var(--muted);font-family:var(--mono);font-size:12px}
-.empty-icon{font-size:2rem;margin-bottom:.75rem;display:block;opacity:.3}
+.btn-secondary {
+  background: var(--panel2); color: var(--text);
+  font-family: var(--sans); font-size: 13px; font-weight: 600;
+  padding: 10px 20px; border: 1px solid var(--border2); border-radius: 6px; cursor: pointer;
+  transition: border .15s;
+}
+.btn-secondary:hover { border-color: var(--text); }
 
-/* ── QR SCANNER ── */
-.qr-wrap{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1rem}
-.qr-wrap video{width:280px;height:280px;object-fit:cover;border-radius:8px;border:2px solid var(--accent)}
-.qr-close{background:var(--red-dim);color:var(--red);border:none;font-family:var(--mono);font-size:12px;padding:8px 20px;border-radius:5px;cursor:pointer}
-.qr-hint{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:center}
+.btn-sm {
+  font-family: var(--mono); font-size: 11px;
+  padding: 7px 12px; border-radius: 5px;
+  border: 1px solid var(--border2); background: var(--panel2);
+  color: var(--muted); cursor: pointer; white-space: nowrap;
+  transition: all .15s;
+}
+.btn-sm:hover { border-color: var(--green); color: var(--green); }
 
-/* ── USER TABLE ── */
-.user-row-actions{display:flex;gap:6px}
+.btn-danger {
+  background: var(--red-bg); color: var(--red);
+  font-family: var(--mono); font-size: 10px;
+  padding: 5px 12px; border: 1px solid rgba(255,77,109,.2); border-radius: 4px; cursor: pointer;
+  transition: all .15s;
+}
+.btn-danger:hover { border-color: var(--red); }
 
-/* ── SCROLLBAR ── */
-::-webkit-scrollbar{width:4px;height:4px}
-::-webkit-scrollbar-track{background:var(--bg)}
-::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.btn-row { display: flex; gap: 8px; margin-top: 1rem; align-items: center; flex-wrap: wrap; }
 
-/* ── MOBILE ── */
-@media(max-width:600px){.page{padding:1rem}.topbar{padding:0 1rem}.nav-btn{padding:10px 12px;font-size:10px}}
+/* ══════════════════════════════════════
+   ISSUE PANEL
+══════════════════════════════════════ */
+.issue-search-row { display: flex; gap: 8px; margin-bottom: 1.5rem; }
+.issue-search-row input {
+  flex: 1; background: var(--panel); border: 1px solid var(--border2);
+  color: var(--text); font-family: var(--mono); font-size: 13px;
+  padding: 11px 14px; border-radius: 8px; outline: none; transition: border .2s;
+}
+.issue-search-row input:focus { border-color: var(--green); }
+
+.issue-card {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 10px; padding: 1.25rem;
+}
+.issue-emp-name { font-size: 16px; font-weight: 700; }
+.issue-emp-sub {
+  font-size: 11px; color: var(--muted); font-family: var(--mono);
+  margin-top: 4px; margin-bottom: 1.25rem;
+}
+.meal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.meal-box {
+  background: var(--panel2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 12px 10px; text-align: center;
+  transition: border .15s;
+}
+.meal-box-lbl { font-size: 9px; color: var(--muted); font-family: var(--mono); letter-spacing: .07em; text-transform: uppercase; margin-bottom: 5px; }
+.meal-box-val { font-size: 12px; font-weight: 700; font-family: var(--mono); margin-bottom: 10px; min-height: 18px; }
+.meal-issue-btn {
+  width: 100%; padding: 6px; border-radius: 4px;
+  font-size: 10px; font-weight: 700; font-family: var(--mono);
+  border: none; cursor: pointer; transition: all .15s; letter-spacing: .03em;
+}
+.mib-pending { background: var(--amber-bg); color: var(--amber); border: 1px solid rgba(245,166,35,.3); }
+.mib-pending:hover { background: rgba(245,166,35,.2); }
+.mib-issued  { background: var(--green-bg); color: var(--green); border: 1px solid rgba(0,229,160,.2); cursor: default; }
+.mib-notreq  { background: #111; color: #2a2a2a; border: 1px solid #191919; cursor: default; }
+
+.board-sep {
+  font-size: 10px; color: var(--amber); font-family: var(--mono);
+  letter-spacing: .07em; text-transform: uppercase;
+  margin: 1rem 0 .5rem;
+  padding-top: 1rem; border-top: 1px dashed var(--border);
+  display: flex; align-items: center; gap: 8px;
+}
+
+/* ══════════════════════════════════════
+   STATUS MESSAGES
+══════════════════════════════════════ */
+.status-msg {
+  font-family: var(--mono); font-size: 12px;
+  padding: 10px 14px; border-radius: 6px; margin-top: 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.sm-success { background: var(--green-bg); color: var(--green); border: 1px solid rgba(0,229,160,.2); }
+.sm-error   { background: var(--red-bg);   color: var(--red);   border: 1px solid rgba(255,77,109,.2); }
+.sm-info    { background: var(--blue-bg);  color: var(--blue);  border: 1px solid rgba(77,171,247,.2); }
+.sm-warn    { background: var(--amber-bg); color: var(--amber); border: 1px solid rgba(245,166,35,.2); }
+
+/* ══════════════════════════════════════
+   EMPTY STATE
+══════════════════════════════════════ */
+.empty { text-align: center; padding: 3.5rem; color: var(--muted); font-family: var(--mono); font-size: 12px; }
+.empty-icon { font-size: 2rem; margin-bottom: .75rem; display: block; opacity: .3; }
+
+/* ══════════════════════════════════════
+   TIME WINDOW INDICATOR
+══════════════════════════════════════ */
+.time-window-bar {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 14px;
+  margin-bottom: 1rem;
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--mono); font-size: 11px;
+}
+.tw-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  flex-shrink: 0;
+}
+.tw-open  { background: var(--green); box-shadow: 0 0 6px rgba(0,229,160,.6); animation: pulse 2s infinite; }
+.tw-closed { background: var(--red); }
+.tw-warn  { background: var(--amber); box-shadow: 0 0 6px rgba(245,166,35,.6); animation: pulse 2s infinite; }
+@keyframes pulse {
+  0%, 100% { opacity: 1; } 50% { opacity: .4; }
+}
+
+/* ══════════════════════════════════════
+   QR SCANNER
+══════════════════════════════════════ */
+.qr-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.92);
+  z-index: 999;
+  display: none;
+  align-items: center; justify-content: center; flex-direction: column;
+  gap: 1rem;
+}
+.qr-overlay.open { display: flex; }
+.qr-box {
+  position: relative;
+  width: 280px; height: 280px;
+}
+.qr-box video {
+  width: 100%; height: 100%;
+  object-fit: cover; border-radius: 12px;
+  border: 2px solid var(--green);
+}
+.qr-corner {
+  position: absolute;
+  width: 24px; height: 24px;
+  border-color: var(--green); border-style: solid;
+}
+.qr-corner.tl { top: -2px; left: -2px; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
+.qr-corner.tr { top: -2px; right: -2px; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
+.qr-corner.bl { bottom: -2px; left: -2px; border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
+.qr-corner.br { bottom: -2px; right: -2px; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
+.qr-scan-line {
+  position: absolute; left: 4px; right: 4px; height: 2px;
+  background: var(--green); opacity: .8;
+  animation: scan 2s ease-in-out infinite;
+}
+@keyframes scan { 0%,100%{top:8px}50%{top:calc(100% - 10px)} }
+.qr-hint { font-family: var(--mono); font-size: 12px; color: var(--muted); text-align: center; max-width: 280px; }
+.qr-close {
+  background: var(--red-bg); color: var(--red);
+  border: 1px solid rgba(255,77,109,.3);
+  font-family: var(--mono); font-size: 12px;
+  padding: 9px 24px; border-radius: 6px; cursor: pointer;
+  transition: all .15s;
+}
+.qr-close:hover { background: rgba(255,77,109,.2); }
+
+/* ══════════════════════════════════════
+   SCROLLBAR
+══════════════════════════════════════ */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+/* ══════════════════════════════════════
+   MOBILE
+══════════════════════════════════════ */
+@media(max-width:600px) {
+  .page { padding: 1rem; }
+  .topbar { padding: 0 1rem; }
+  .nav-btn { padding: 12px 14px; font-size: 11px; }
+  .topbar-user-pill { display: none; }
+}
+
+/* ══════════════════════════════════════
+   ALERT BANNER
+══════════════════════════════════════ */
+.alert-banner {
+  background: var(--amber-bg); border-bottom: 1px solid rgba(245,166,35,.25);
+  padding: 8px 1.5rem; font-family: var(--mono); font-size: 11px;
+  color: var(--amber); display: flex; align-items: center; gap: 8px;
+}
+
+/* Register QR preview */
+.qr-preview-box {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  display: none;
+}
+.qr-preview-box .qr-lbl {
+  font-family: var(--mono); font-size: 10px; color: var(--muted);
+  letter-spacing: .07em; text-transform: uppercase; margin-bottom: 10px;
+}
+#reg-qr-code { background: #fff; padding: 10px; display: inline-block; border-radius: 8px; }
+.qr-sublabel { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 6px; }
 </style>
 </head>
 <body>
 
-<!-- ════════════════════════════════════════════
-     LOGIN SCREEN
-════════════════════════════════════════════ -->
+<!-- ═══════════════════════════════════════
+     LOGIN
+═══════════════════════════════════════ -->
 <div id="screen-login" class="screen active">
   <div class="login-wrap">
-    <div class="login-logo">MealTrack</div>
-    <div class="login-sub">// factory meal management system</div>
-    <div class="field">
-      <label>Username</label>
-      <input id="login-user" type="text" placeholder="enter username" autocomplete="off">
+    <div class="login-logo-row">
+      <div class="login-logo-icon">🍽</div>
+      <div class="login-logo-text">Meal<span>Track</span></div>
     </div>
-    <div class="field">
+    <div class="login-tagline">// factory meal management system</div>
+    <div class="lfield">
+      <label>Employee No</label>
+      <input id="login-user" type="text" placeholder="Enter employee number" autocomplete="off">
+    </div>
+    <div class="lfield">
       <label>Password</label>
-      <input id="login-pass" type="password" placeholder="enter password">
+      <input id="login-pass" type="password" placeholder="Enter password">
     </div>
-    <button class="login-btn" onclick="doLogin()">LOGIN →</button>
+    <button class="login-btn" onclick="doLogin()">SIGN IN →</button>
     <div class="login-err" id="login-err"></div>
-    <div class="login-loading" id="login-loading"></div>
+    <div class="login-info" id="login-info"></div>
   </div>
 </div>
 
-<!-- ════════════════════════════════════════════
-     APP SCREEN
-════════════════════════════════════════════ -->
+<!-- ═══════════════════════════════════════
+     APP
+═══════════════════════════════════════ -->
 <div id="screen-app" class="screen">
   <div class="topbar">
-    <div class="topbar-logo">MealTrack</div>
-    <div class="topbar-user">
-      <span id="topbar-username"></span>
+    <div class="topbar-brand">
+      <div class="topbar-icon">🍽</div>
+      <div class="topbar-name">Meal<span>Track</span></div>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-user-pill" id="topbar-user-pill"></div>
       <button class="logout-btn" onclick="doLogout()">LOGOUT</button>
     </div>
   </div>
 
-  <div class="nav">
-    <button class="nav-btn active" onclick="showPage('dashboard')">DASHBOARD</button>
-    <button class="nav-btn" onclick="showPage('request')">MEAL REQUEST</button>
-    <button class="nav-btn" onclick="showPage('issue')">ISSUE MEALS</button>
-    <button class="nav-btn" onclick="showPage('users')" id="nav-users" style="display:none">USERS</button>
-    <button class="nav-btn" onclick="showPage('register')" id="nav-register" style="display:none">REGISTER</button>
+  <div id="time-banner" class="alert-banner" style="display:none"></div>
+
+  <div class="nav" id="main-nav">
+    <button class="nav-btn active" onclick="showPage('dashboard',this)">📊 DASHBOARD</button>
+    <button class="nav-btn" onclick="showPage('request',this)" id="nav-request">🍱 MEAL REQUEST</button>
+    <button class="nav-btn" onclick="showPage('issue',this)" id="nav-issue">✅ ISSUE MEALS</button>
+    <button class="nav-btn" onclick="showPage('users',this)" id="nav-users" style="display:none">👥 USERS</button>
+    <button class="nav-btn" onclick="showPage('register',this)" id="nav-register" style="display:none">➕ REGISTER</button>
   </div>
 
   <div class="content">
@@ -225,18 +615,18 @@ td{padding:9px 12px;vertical-align:middle;white-space:nowrap}
     <!-- ── DASHBOARD ── -->
     <div id="page-dashboard" class="page active">
       <div class="stats-grid">
-        <div class="stat-box"><div class="stat-num c-green" id="s-total">—</div><div class="stat-lbl">Total Today</div></div>
-        <div class="stat-box"><div class="stat-num c-blue" id="s-tea1">—</div><div class="stat-lbl">Tea 01</div></div>
+        <div class="stat-box"><div class="stat-num c-cyan"  id="s-total">—</div><div class="stat-lbl">All Today</div></div>
+        <div class="stat-box"><div class="stat-num c-blue"  id="s-tea1">—</div><div class="stat-lbl">Tea 01</div></div>
         <div class="stat-box"><div class="stat-num c-green" id="s-lunch">—</div><div class="stat-lbl">Lunch</div></div>
-        <div class="stat-box"><div class="stat-num c-blue" id="s-tea2">—</div><div class="stat-lbl">Tea 02</div></div>
+        <div class="stat-box"><div class="stat-num c-blue"  id="s-tea2">—</div><div class="stat-lbl">Tea 02</div></div>
         <div class="stat-box"><div class="stat-num c-amber" id="s-bfast">—</div><div class="stat-lbl">Breakfast</div></div>
         <div class="stat-box"><div class="stat-num c-amber" id="s-dinner">—</div><div class="stat-lbl">Dinner</div></div>
-        <div class="stat-box"><div class="stat-num c-red" id="s-pending">—</div><div class="stat-lbl">Pending</div></div>
-        <div class="stat-box"><div class="stat-num c-purple" id="s-done">—</div><div class="stat-lbl">Issued</div></div>
+        <div class="stat-box"><div class="stat-num c-red"   id="s-pending">—</div><div class="stat-lbl">Pending</div></div>
+        <div class="stat-box"><div class="stat-num c-green" id="s-done">—</div><div class="stat-lbl">Issued</div></div>
       </div>
 
       <div class="toolbar">
-        <input id="dash-search" placeholder="Search emp no or name..." oninput="applyFilters()" style="width:200px">
+        <input id="dash-search" placeholder="Search emp no or name…" oninput="applyFilters()" style="width:200px">
         <select id="f-shift" onchange="applyFilters()">
           <option value="">All Shifts</option>
           <option>A</option><option>B</option><option>G</option>
@@ -248,15 +638,16 @@ td{padding:9px 12px;vertical-align:middle;white-space:nowrap}
           <option value="pending">Has Pending</option>
           <option value="done">Fully Issued</option>
         </select>
-        <button class="btn-secondary" style="font-size:11px;padding:6px 12px" onclick="exportCSV()">↓ CSV</button>
+        <button class="btn-sm" onclick="loadDashboard()">↻ Refresh</button>
+        <button class="btn-sm" onclick="exportCSV()">↓ CSV</button>
         <span class="lbl" id="rec-count"></span>
       </div>
 
       <div class="tbl-wrap">
-        <div id="dash-state" class="empty"><span class="empty-icon">⏳</span>Loading records...</div>
+        <div id="dash-state" class="empty"><span class="empty-icon">⏳</span>Loading records…</div>
         <table id="dash-table" style="display:none">
           <thead><tr>
-            <th onclick="sortBy('emp_no')">Emp No</th>
+            <th onclick="sortBy('emp_no')">Emp #</th>
             <th onclick="sortBy('emp_name')">Name</th>
             <th onclick="sortBy('emp_dept')">Dept</th>
             <th onclick="sortBy('emp_shift')">Shift</th>
@@ -275,33 +666,36 @@ td{padding:9px 12px;vertical-align:middle;white-space:nowrap}
 
     <!-- ── MEAL REQUEST ── -->
     <div id="page-request" class="page">
+      <div id="req-time-window"></div>
+
       <div class="card">
-        <div class="card-title">Employee Info</div>
+        <div class="card-title"><div class="card-title-dot"></div>Employee Lookup</div>
         <div class="form-grid">
           <div class="form-field">
             <label>Employee Number</label>
-            <div style="display:flex;gap:6px">
-              <input id="req-empno" placeholder="e.g. 749" oninput="autoFillEmployee()">
-              <button class="btn-secondary" onclick="openQR('req-empno')" title="Scan QR" style="padding:8px 12px;white-space:nowrap">📷 QR</button>
+            <div class="input-btn-row">
+              <input id="req-empno" placeholder="e.g. 501" oninput="autoFillEmployee()">
+              <button class="btn-sm" onclick="openQR('req-empno')">📷 QR</button>
+              <button class="btn-sm" onclick="fetchEmployeeData()">⬇ GET</button>
             </div>
           </div>
           <div class="form-field">
             <label>Name</label>
-            <input id="req-name" placeholder="auto-filled" readonly style="opacity:.7">
+            <input id="req-name" placeholder="auto-filled" readonly>
           </div>
           <div class="form-field">
             <label>Department</label>
-            <input id="req-dept" placeholder="auto-filled" readonly style="opacity:.7">
+            <input id="req-dept" placeholder="auto-filled" readonly>
           </div>
           <div class="form-field">
             <label>Shift</label>
-            <input id="req-shift" placeholder="auto-filled" readonly style="opacity:.7">
+            <input id="req-shift" placeholder="auto-filled" readonly>
           </div>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-title">Shift Meals</div>
+        <div class="card-title"><div class="card-title-dot" style="background:var(--blue)"></div>Shift Meals</div>
         <div class="form-grid">
           <div class="form-field">
             <label>Tea 01</label>
@@ -329,7 +723,8 @@ td{padding:9px 12px;vertical-align:middle;white-space:nowrap}
       </div>
 
       <div class="card" id="boarding-section" style="display:none">
-        <div class="card-title">Boarding Meals <span style="color:var(--amber);font-size:10px">— for tomorrow</span></div>
+        <div class="card-title"><div class="card-title-dot" style="background:var(--amber)"></div>Boarding Meals <span style="color:var(--amber);font-size:10px;margin-left:6px">— for tomorrow</span></div>
+        <div id="boarding-time-note" class="status-msg sm-warn" style="margin-bottom:12px;margin-top:0"></div>
         <div class="form-grid">
           <div class="form-field">
             <label>Breakfast</label>
@@ -346,6 +741,24 @@ td{padding:9px 12px;vertical-align:middle;white-space:nowrap}
             </div>
           </div>
         </div>
+        <!-- Friday special: request for Sat + Sun -->
+        <div id="friday-section" style="display:none;margin-top:1rem">
+          <div class="card-title" style="margin-top:.5rem"><div class="card-title-dot" style="background:var(--purple)"></div>Weekend Request (Sat + Sun)</div>
+          <div class="form-grid three" style="margin-top:.5rem">
+            <div class="form-field"><label>Sat Breakfast</label>
+              <div class="toggle-group" id="tgl-sat-bf"><button class="tgl" onclick="setMeal('sat_bf','Yes',this,'active-yes')">YES</button><button class="tgl active-no" onclick="setMeal('sat_bf','No',this,'active-no')">NO</button></div>
+            </div>
+            <div class="form-field"><label>Sat Dinner</label>
+              <div class="toggle-group" id="tgl-sat-di"><button class="tgl" onclick="setMeal('sat_di','Yes',this,'active-yes')">YES</button><button class="tgl active-no" onclick="setMeal('sat_di','No',this,'active-no')">NO</button></div>
+            </div>
+            <div class="form-field"><label>Sun Breakfast</label>
+              <div class="toggle-group" id="tgl-sun-bf"><button class="tgl" onclick="setMeal('sun_bf','Yes',this,'active-yes')">YES</button><button class="tgl active-no" onclick="setMeal('sun_bf','No',this,'active-no')">NO</button></div>
+            </div>
+            <div class="form-field"><label>Sun Dinner</label>
+              <div class="toggle-group" id="tgl-sun-di"><button class="tgl" onclick="setMeal('sun_di','Yes',this,'active-yes')">YES</button><button class="tgl active-no" onclick="setMeal('sun_di','No',this,'active-no')">NO</button></div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="btn-row">
@@ -358,8 +771,9 @@ td{padding:9px 12px;vertical-align:middle;white-space:nowrap}
     <!-- ── ISSUE MEALS ── -->
     <div id="page-issue" class="page">
       <div class="issue-search-row">
-        <input id="issue-empno" placeholder="Type Employee No and press Enter..." onkeydown="if(event.key==='Enter')searchIssue()">
-        <button class="btn-secondary" onclick="openQR('issue-empno')" style="padding:8px 12px">📷</button>
+        <input id="issue-empno" placeholder="Type Employee No and press Enter…" onkeydown="if(event.key==='Enter')searchIssue()">
+        <button class="btn-sm" onclick="openQR('issue-empno')" style="padding:9px 14px">📷</button>
+        <button class="btn-sm" onclick="fetchAndSearchIssue()" style="padding:9px 14px;color:var(--cyan);border-color:var(--cyan)">⬇ GET</button>
         <button class="btn-primary" onclick="searchIssue()">SEARCH</button>
       </div>
       <div id="issue-result"></div>
@@ -368,24 +782,26 @@ td{padding:9px 12px;vertical-align:middle;white-space:nowrap}
     <!-- ── USERS ── -->
     <div id="page-users" class="page">
       <div class="toolbar">
-        <input id="user-search" placeholder="Search users..." oninput="renderUsers()" style="width:200px">
+        <input id="user-search" placeholder="Search users…" oninput="renderUsers()" style="width:220px">
+        <button class="btn-sm" onclick="loadUsers()">↻ Refresh</button>
         <span class="lbl" id="user-count"></span>
       </div>
       <div class="tbl-wrap">
-        <div id="users-state" class="empty"><span class="empty-icon">⏳</span>Loading users...</div>
+        <div id="users-state" class="empty"><span class="empty-icon">⏳</span>Loading…</div>
         <table id="users-table" style="display:none">
           <thead><tr>
-            <th>Emp No</th><th>Name</th><th>Username</th><th>Dept</th><th>Shift</th><th>Role</th><th>Boarding</th><th>Actions</th>
+            <th>Emp #</th><th>Name</th><th>Username</th><th>Dept</th>
+            <th>Shift</th><th>Role</th><th>Boarding</th><th>BF Eligible</th><th>Actions</th>
           </tr></thead>
           <tbody id="users-tbody"></tbody>
         </table>
       </div>
     </div>
 
-    <!-- ── REGISTER USER ── -->
+    <!-- ── REGISTER ── -->
     <div id="page-register" class="page">
-      <div class="card" style="max-width:560px">
-        <div class="card-title">Register New Employee</div>
+      <div class="card" style="max-width:600px">
+        <div class="card-title"><div class="card-title-dot"></div>Register New Employee</div>
         <div class="form-grid">
           <div class="form-field">
             <label>Employee Number</label>
@@ -408,7 +824,9 @@ td{padding:9px 12px;vertical-align:middle;white-space:nowrap}
             <select id="reg-dept">
               <option value="">Select dept</option>
               <option>IT</option><option>HR</option><option>Finance</option>
-              <option>Operations</option><option>Stores</option><option>Admin</option><option>Production</option>
+              <option>Operations</option><option>Stores</option><option>Admin</option>
+              <option>Production</option><option>MAINTENANCE</option><option>WASHING</option>
+              <option>CANTEEN</option><option>QUALITY</option><option>SECURITY</option>
             </select>
           </div>
           <div class="form-field">
@@ -421,16 +839,23 @@ td{padding:9px 12px;vertical-align:middle;white-space:nowrap}
           <div class="form-field">
             <label>Role</label>
             <select id="reg-role">
-              <option value="user">User</option>
-              <option value="admin">Admin</option>
-              <option value="canteen">Canteen</option>
+              <option value="Employee">Employee</option>
+              <option value="Admin">Admin</option>
+              <option value="Canteen">Canteen</option>
             </select>
           </div>
           <div class="form-field">
             <label>Boarding</label>
-            <select id="reg-boarding">
-              <option value="false">No</option>
-              <option value="true">Yes — boarding employee</option>
+            <select id="reg-boarding" onchange="updateBFEligibility()">
+              <option value="NO">No — not boarding</option>
+              <option value="YES">YES — boarding employee</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label>BF Eligible (Breakfast/Dinner)</label>
+            <select id="reg-bf">
+              <option value="NO">NO</option>
+              <option value="YES">YES</option>
             </select>
           </div>
         </div>
@@ -439,12 +864,10 @@ td{padding:9px 12px;vertical-align:middle;white-space:nowrap}
           <button class="btn-secondary" onclick="clearRegister()">CLEAR</button>
         </div>
         <div id="reg-status"></div>
-
-        <!-- QR Preview -->
-        <div id="qr-preview" style="margin-top:1.5rem;display:none">
-          <div style="font-size:10px;color:var(--muted);font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px">Employee QR Code</div>
-          <div id="qr-code" style="background:#fff;padding:10px;display:inline-block;border-radius:6px"></div>
-          <div style="font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:6px" id="qr-label"></div>
+        <div id="reg-qr-preview" class="qr-preview-box">
+          <div class="qr-lbl">Employee QR Code</div>
+          <div id="reg-qr-code"></div>
+          <div class="qr-sublabel" id="reg-qr-label"></div>
         </div>
       </div>
     </div>
@@ -452,31 +875,42 @@ td{padding:9px 12px;vertical-align:middle;white-space:nowrap}
   </div><!-- /content -->
 </div><!-- /screen-app -->
 
-<!-- ── QR SCANNER OVERLAY ── -->
-<div id="qr-overlay" class="qr-wrap" style="display:none">
+<!-- ═══════════════════════════════════════
+     QR SCANNER OVERLAY
+═══════════════════════════════════════ -->
+<div id="qr-overlay" class="qr-overlay">
   <div class="qr-hint">Point camera at employee QR code</div>
-  <video id="qr-video" autoplay playsinline></video>
-  <button class="qr-close" onclick="closeQR()">✕ CLOSE</button>
+  <div class="qr-box">
+    <video id="qr-video" autoplay playsinline muted></video>
+    <div class="qr-corner tl"></div>
+    <div class="qr-corner tr"></div>
+    <div class="qr-corner bl"></div>
+    <div class="qr-corner br"></div>
+    <div class="qr-scan-line"></div>
+  </div>
+  <canvas id="qr-canvas" style="display:none"></canvas>
+  <button class="qr-close" onclick="closeQR()">✕ CLOSE SCANNER</button>
 </div>
 
 <script>
-// ════════════════════════════════════════════
+// ═══════════════════════════════════════════
 // CONFIG
-// ════════════════════════════════════════════
+// ═══════════════════════════════════════════
 const DB  = 'https://mealrequest-4a7b2-default-rtdb.firebaseio.com';
-const BKT = 'mealrequest';
+const EMP_NODE = 'Employees';  // Firebase Employees node
+const REQ_NODE = 'MealRequests'; // Separate requests node
 
-// ── State ──
+// ── Global State ──
 let currentUser = null;
 let allRecords  = [];
-let allUsers    = {};
+let allUsers    = {};   // key = emp_no (string), val = employee object
 let sortCol = '_date', sortDir = -1;
-let meals = { tea1:'No', lunch:'No', tea2:'No', breakfast:'No', dinner:'No' };
-let qrTarget = null, qrStream = null;
+let meals = { tea1:'No', lunch:'No', tea2:'No', breakfast:'No', dinner:'No', sat_bf:'No', sat_di:'No', sun_bf:'No', sun_di:'No' };
+let qrTarget = null, qrStream = null, qrAnimFrame = null;
 
-// ════════════════════════════════════════════
+// ═══════════════════════════════════════════
 // FIREBASE HELPERS
-// ════════════════════════════════════════════
+// ═══════════════════════════════════════════
 async function fbGet(path) {
   const r = await fetch(`${DB}/${path}.json`);
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -484,144 +918,240 @@ async function fbGet(path) {
 }
 async function fbSet(path, val) {
   const r = await fetch(`${DB}/${path}.json`, {
-    method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(val)
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(val)
   });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   return r.json();
 }
-async function fbPatch(path, val) {
-  const r = await fetch(`${DB}/${path}.json`, {
-    method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(val)
-  });
+async function fbDel(path) {
+  const r = await fetch(`${DB}/${path}.json`, { method: 'DELETE' });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
-  return r.json();
 }
 
-// ════════════════════════════════════════════
-// DATE HELPERS
-// ════════════════════════════════════════════
+// ═══════════════════════════════════════════
+// DATE / TIME HELPERS
+// ═══════════════════════════════════════════
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
 function keyDate(d) {
-  const m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  return `${m[d.getMonth()]}${d.getDate()}_${d.getFullYear()}`;
+  return `${MONTHS[d.getMonth()]}${d.getDate()}_${d.getFullYear()}`;
 }
 function displayDate(d) {
-  const m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  return `${m[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+  return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
 }
-function tomorrow() {
-  return new Date(Date.now() + 86400000);
+function now() { return new Date(); }
+function tomorrow() { const d = new Date(); d.setDate(d.getDate()+1); return d; }
+function dayAfterTomorrow() { const d = new Date(); d.setDate(d.getDate()+2); return d; }
+
+// Day of week: 0=Sun,1=Mon,...,5=Fri,6=Sat
+function isFriday()   { return now().getDay() === 5; }
+function isSaturday() { return now().getDay() === 6; }
+function isSunday()   { return now().getDay() === 0; }
+
+function getHour() { return now().getHours(); }  // 0-23
+function getHourMin() {
+  const n = now();
+  return n.getHours() * 60 + n.getMinutes();
 }
 
-// ════════════════════════════════════════════
+// ── Request Window Logic ──
+// Shift A (day): 6:00 – 10:00 → request window 06:00-10:00
+// Shift B (night): 18:00 – 21:00 → request window 18:00-21:00
+// Shift G: same as A (day shift)
+// Boarding breakfast/dinner: day before by 21:00
+// Boarding dinner: same day by 14:00 (but Friday → both days)
+
+function isShiftWindowOpen(shift) {
+  const hm = getHourMin();
+  if (shift === 'A' || shift === 'G') {
+    return hm >= 6*60 && hm < 10*60;
+  }
+  if (shift === 'B') {
+    return hm >= 18*60 && hm < 21*60;
+  }
+  return true; // admin override
+}
+
+function canRequestBoardingMeals() {
+  // Before 21:00 any day is fine for requesting tomorrow's BF/Dinner
+  const hm = getHourMin();
+  return hm < 21*60;
+}
+
+function canRequestDinner() {
+  // Dinner must be requested same day before 14:00
+  const hm = getHourMin();
+  return hm < 14*60;
+}
+
+// ═══════════════════════════════════════════
 // AUTH
-// ════════════════════════════════════════════
+// ═══════════════════════════════════════════
 async function doLogin() {
-  const u = document.getElementById('login-user').value.trim();
-  const p = document.getElementById('login-pass').value;
-  const err = document.getElementById('login-err');
-  const loading = document.getElementById('login-loading');
-  if (!u || !p) { err.textContent = 'Enter username and password'; return; }
-  err.textContent = '';
-  loading.textContent = 'Checking...';
+  const empno = document.getElementById('login-user').value.trim();
+  const pass  = document.getElementById('login-pass').value;
+  const err   = document.getElementById('login-err');
+  const info  = document.getElementById('login-info');
+  if (!empno || !pass) { err.textContent = 'Enter employee number and password'; return; }
+  err.textContent = ''; info.textContent = 'Authenticating…';
+
   try {
-    const data = await fbGet(`Users/${u}`);
-    if (!data) { err.textContent = 'Username not found'; loading.textContent=''; return; }
-    if (String(data.password) !== p) { err.textContent = 'Wrong password'; loading.textContent=''; return; }
-    currentUser = { ...data, username: u };
-    loading.textContent = '';
-    document.getElementById('topbar-username').textContent = `${data.name || u} · ${(data.role||'user').toUpperCase()}`;
-    // show admin tabs
-    if (data.role === 'admin') {
-      document.getElementById('nav-users').style.display = '';
-      document.getElementById('nav-register').style.display = '';
+    // Load employee by emp_no key
+    const emp = await fbGet(`${EMP_NODE}/${empno}`);
+    if (!emp) {
+      // Try parsing as JSON string (old format)
+      err.textContent = 'Employee not found'; info.textContent = ''; return;
     }
+    // emp may be a JSON string or an object
+    const data = typeof emp === 'string' ? JSON.parse(emp) : emp;
+    if (String(data.password) !== String(pass)) {
+      err.textContent = 'Wrong password'; info.textContent = ''; return;
+    }
+
+    currentUser = { ...data, emp_no: String(empno) };
+    info.textContent = '';
+
+    const role = (data.role || 'Employee').toLowerCase();
+    document.getElementById('topbar-user-pill').textContent =
+      `${data.username || empno} · ${data.dept||''} · ${(data.role||'Employee').toUpperCase()}`;
+
+    // Show admin/canteen tabs
+    const isAdmin   = role === 'admin';
+    const isCanteen = role === 'canteen' || role === 'admin';
+    document.getElementById('nav-users').style.display    = isAdmin   ? '' : 'none';
+    document.getElementById('nav-register').style.display = isAdmin   ? '' : 'none';
+    document.getElementById('nav-issue').style.display    = isCanteen ? '' : 'none';
+
     document.getElementById('screen-login').classList.remove('active');
     document.getElementById('screen-app').classList.add('active');
+
+    showTimeBanner();
     loadDashboard();
     loadUsers();
+    updateRequestPage();
   } catch(e) {
-    err.textContent = 'Connection error — check Firebase rules';
-    loading.textContent = '';
+    err.textContent = 'Connection error — ' + e.message;
+    info.textContent = '';
   }
 }
-document.getElementById('login-pass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+
+document.getElementById('login-pass').addEventListener('keydown', e => { if(e.key === 'Enter') doLogin(); });
+document.getElementById('login-user').addEventListener('keydown', e => { if(e.key === 'Enter') document.getElementById('login-pass').focus(); });
 
 function doLogout() {
   currentUser = null;
+  allRecords = [];
   document.getElementById('screen-app').classList.remove('active');
   document.getElementById('screen-login').classList.add('active');
   document.getElementById('login-pass').value = '';
   document.getElementById('login-err').textContent = '';
-  document.getElementById('nav-users').style.display = 'none';
-  document.getElementById('nav-register').style.display = 'none';
+  document.getElementById('login-user').value = '';
 }
 
-// ════════════════════════════════════════════
+// ═══════════════════════════════════════════
+// TIME BANNER
+// ═══════════════════════════════════════════
+function showTimeBanner() {
+  const banner = document.getElementById('time-banner');
+  const n = now();
+  const hm = getHourMin();
+  const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const day = dayNames[n.getDay()];
+  const timeStr = `${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`;
+
+  let msg = `⏰ ${day} ${timeStr}  ·  `;
+
+  if (hm >= 6*60 && hm < 10*60) {
+    msg += `🟢 Day shift window OPEN (A/G shift — 06:00–10:00)`;
+  } else if (hm >= 18*60 && hm < 21*60) {
+    msg += `🟢 Night shift window OPEN (B shift — 18:00–21:00)`;
+  } else {
+    msg += `🔴 Request window CLOSED`;
+  }
+
+  if (isFriday() && hm < 21*60) {
+    msg += `  ·  📅 Friday — weekend meal request available`;
+  }
+
+  banner.textContent = msg;
+  banner.style.display = 'flex';
+}
+
+// ═══════════════════════════════════════════
 // NAV
-// ════════════════════════════════════════════
-function showPage(id) {
+// ═══════════════════════════════════════════
+function showPage(id, btn) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById(`page-${id}`).classList.add('active');
-  event.target.classList.add('active');
+  if (btn) btn.classList.add('active');
   if (id === 'dashboard') loadDashboard();
+  if (id === 'request')   updateRequestPage();
 }
 
-// ════════════════════════════════════════════
+// ═══════════════════════════════════════════
 // DASHBOARD
-// ════════════════════════════════════════════
+// ═══════════════════════════════════════════
 async function loadDashboard() {
+  document.getElementById('dash-state').innerHTML = '<span class="empty-icon">⏳</span>Loading records…';
+  document.getElementById('dash-state').style.display = 'block';
+  document.getElementById('dash-table').style.display = 'none';
   try {
-    const data = await fbGet(BKT);
-    if (!data) { allRecords = []; renderTable([]); return; }
-    allRecords = Object.entries(data).map(([key, val]) => {
-      let r = val;
-      if (typeof r === 'string') { try { r = JSON.parse(r); } catch(e){ r={}; } }
-      if (typeof r === 'string') { try { r = JSON.parse(r); } catch(e){ r={}; } }
-      r.emp_no    = r.emp_no    || '';
-      r.emp_name  = r.emp_name  || '';
-      r.emp_dept  = r.emp_dept  || '';
-      r.emp_shift = r.emp_shift || '';
-      r['Tea 01'] = r['Tea 01'] || r['Morning Tea'] || '';
-      r['Tea 02'] = r['Tea 02'] || r['Afternoon Tea'] || '';
-      r['Lunch']  = r['Lunch']  || '';
-      r['Breakfast'] = r['Breakfast'] || '';
-      r['Dinner']    = r['Dinner']    || '';
-      r['Tea 01 Issued']    = r['Tea 01 Issued']    || 'No';
-      r['Tea 02 Issued']    = r['Tea 02 Issued']    || 'No';
-      r['Lunch Issued']     = r['Lunch Issued']     || 'No';
-      r['Breakfast Issued'] = r['Breakfast Issued'] || 'No';
-      r['Dinner Issued']    = r['Dinner Issued']    || 'No';
-      r._key  = key;
-      r._date = extractDate(key, r);
-      return r;
-    }).filter(r => r.emp_no !== '');
+    const data = await fbGet(REQ_NODE);
+    if (!data) { allRecords = []; renderTable([]); updateStats([]); return; }
+
+    allRecords = Object.entries(data).flatMap(([empKey, dateMap]) => {
+      if (typeof dateMap !== 'object') return [];
+      return Object.entries(dateMap).map(([dateKey, rec]) => {
+        if (!rec || typeof rec !== 'object') return null;
+        rec._key    = `${empKey}/${dateKey}`;
+        rec._empKey = empKey;
+        rec._dateKey = dateKey;
+        rec._date   = dateKey.replace(/_/g,' ');
+        rec.emp_no  = rec.emp_no  || empKey;
+        rec.emp_name  = rec.emp_name  || '';
+        rec.emp_dept  = rec.emp_dept  || '';
+        rec.emp_shift = rec.emp_shift || '';
+        rec['Tea 01']    = rec['Tea 01']    || 'No';
+        rec['Tea 02']    = rec['Tea 02']    || 'No';
+        rec['Lunch']     = rec['Lunch']     || 'No';
+        rec['Breakfast'] = rec['Breakfast'] || 'No';
+        rec['Dinner']    = rec['Dinner']    || 'No';
+        rec['Tea 01 Issued']    = rec['Tea 01 Issued']    || 'No';
+        rec['Tea 02 Issued']    = rec['Tea 02 Issued']    || 'No';
+        rec['Lunch Issued']     = rec['Lunch Issued']     || 'No';
+        rec['Breakfast Issued'] = rec['Breakfast Issued'] || 'No';
+        rec['Dinner Issued']    = rec['Dinner Issued']    || 'No';
+        return rec;
+      }).filter(Boolean);
+    });
+
     populateFilters();
     applyFilters();
   } catch(e) {
-    document.getElementById('dash-state').innerHTML = `<span class="empty-icon">⚠</span>Could not load — check Firebase rules`;
+    document.getElementById('dash-state').innerHTML = `<span class="empty-icon">⚠</span>Load error: ${e.message}`;
     document.getElementById('dash-state').style.display = 'block';
   }
 }
 
-function extractDate(key, r) {
-  const m = key.match(/_([A-Z][a-z]+\d+_\d{4})$/);
-  if (m) return m[1].replace('_',' ');
-  return r['Tea 01 Date'] || r['Lunch Date'] || r['Breakfast Date'] || '';
-}
-
-function parseDate(str) {
+function parseDateStr(str) {
   if (!str) return new Date(0);
-  const m = str.match(/([A-Za-z]+)(\d+)\s*_?\s*(\d{4})/);
+  // "Jan 8 2025" or "Jan8_2025"
+  const s = str.replace(/_/g,' ');
+  const m = s.match(/([A-Za-z]+)\s*(\d+)[,\s]+(\d{4})/);
   if (m) return new Date(`${m[1]} ${m[2]}, ${m[3]}`);
-  return new Date(str);
+  return new Date(s);
 }
 
 function populateFilters() {
-  const depts = [...new Set(allRecords.map(r=>r.emp_dept).filter(Boolean))].sort();
-  const dates = [...new Set(allRecords.map(r=>r._date).filter(Boolean))].sort((a,b)=>parseDate(b)-parseDate(a));
-  document.getElementById('f-dept').innerHTML = '<option value="">All Depts</option>'+depts.map(d=>`<option>${d}</option>`).join('');
-  document.getElementById('f-date').innerHTML = '<option value="">All Dates</option>'+dates.map(d=>`<option>${d}</option>`).join('');
+  const depts = [...new Set(allRecords.map(r => r.emp_dept).filter(Boolean))].sort();
+  const dates = [...new Set(allRecords.map(r => r._date).filter(Boolean))].sort((a,b) => parseDateStr(b) - parseDateStr(a));
+  const dSel = document.getElementById('f-dept');
+  const dtSel = document.getElementById('f-date');
+  dSel.innerHTML  = '<option value="">All Depts</option>' + depts.map(d=>`<option>${esc(d)}</option>`).join('');
+  dtSel.innerHTML = '<option value="">All Dates</option>' + dates.map(d=>`<option>${esc(d)}</option>`).join('');
 }
 
 function applyFilters() {
@@ -630,116 +1160,204 @@ function applyFilters() {
   const dt = document.getElementById('f-date').value;
   const dp = document.getElementById('f-dept').value;
   const st = document.getElementById('f-status').value;
+
   let f = allRecords.filter(r => {
     if (q  && !`${r.emp_no} ${r.emp_name}`.toLowerCase().includes(q)) return false;
     if (sh && r.emp_shift !== sh) return false;
     if (dt && r._date !== dt) return false;
     if (dp && r.emp_dept !== dp) return false;
-    if (st==='pending' && !hasPending(r)) return false;
-    if (st==='done'    && !fullyIssued(r)) return false;
+    if (st === 'pending' && !hasPending(r)) return false;
+    if (st === 'done'    && !fullyIssued(r)) return false;
     return true;
   });
-  f = [...f].sort((a,b)=> {
-    if (sortCol==='_date') return (parseDate(b._date)-parseDate(a._date))*sortDir;
-    const av=(a[sortCol]||'').toString().toLowerCase();
-    const bv=(b[sortCol]||'').toString().toLowerCase();
-    return av<bv?-sortDir:av>bv?sortDir:0;
+
+  f = [...f].sort((a,b) => {
+    if (sortCol === '_date') return (parseDateStr(b._date) - parseDateStr(a._date)) * sortDir;
+    const av = (a[sortCol]||'').toString().toLowerCase();
+    const bv = (b[sortCol]||'').toString().toLowerCase();
+    return av < bv ? -sortDir : av > bv ? sortDir : 0;
   });
+
   renderTable(f);
   updateStats(f);
-  document.getElementById('rec-count').textContent = `${f.length} of ${allRecords.length}`;
+  document.getElementById('rec-count').textContent = `${f.length} / ${allRecords.length} records`;
 }
 
 function hasPending(r) {
   return [['Tea 01','Tea 01 Issued'],['Lunch','Lunch Issued'],['Tea 02','Tea 02 Issued'],
           ['Breakfast','Breakfast Issued'],['Dinner','Dinner Issued']]
-    .some(([req,iss])=>r[req]&&r[req]!=='No'&&r[req]!==''&&r[iss]!=='Yes');
+    .some(([req,iss]) => r[req] && r[req] !== 'No' && r[req] !== '' && r[iss] !== 'Yes');
 }
 function fullyIssued(r) {
-  const reqs=[['Tea 01','Tea 01 Issued'],['Lunch','Lunch Issued'],['Tea 02','Tea 02 Issued'],
-              ['Breakfast','Breakfast Issued'],['Dinner','Dinner Issued']]
-    .filter(([req])=>r[req]&&r[req]!=='No'&&r[req]!=='');
-  return reqs.length>0 && reqs.every(([,iss])=>r[iss]==='Yes');
+  const reqs = [['Tea 01','Tea 01 Issued'],['Lunch','Lunch Issued'],['Tea 02','Tea 02 Issued'],
+                ['Breakfast','Breakfast Issued'],['Dinner','Dinner Issued']]
+    .filter(([req]) => r[req] && r[req] !== 'No' && r[req] !== '');
+  return reqs.length > 0 && reqs.every(([,iss]) => r[iss] === 'Yes');
 }
 
 function updateStats(f) {
-  const yes = v => v&&v!=='No'&&v!=='';
+  const yes = v => v && v !== 'No' && v !== '';
   document.getElementById('s-total').textContent   = allRecords.length;
-  document.getElementById('s-tea1').textContent    = f.filter(r=>yes(r['Tea 01'])).length;
-  document.getElementById('s-lunch').textContent   = f.filter(r=>yes(r['Lunch'])).length;
-  document.getElementById('s-tea2').textContent    = f.filter(r=>yes(r['Tea 02'])).length;
-  document.getElementById('s-bfast').textContent   = f.filter(r=>yes(r['Breakfast'])).length;
-  document.getElementById('s-dinner').textContent  = f.filter(r=>yes(r['Dinner'])).length;
+  document.getElementById('s-tea1').textContent    = f.filter(r => yes(r['Tea 01'])).length;
+  document.getElementById('s-lunch').textContent   = f.filter(r => yes(r['Lunch'])).length;
+  document.getElementById('s-tea2').textContent    = f.filter(r => yes(r['Tea 02'])).length;
+  document.getElementById('s-bfast').textContent   = f.filter(r => yes(r['Breakfast'])).length;
+  document.getElementById('s-dinner').textContent  = f.filter(r => yes(r['Dinner'])).length;
   document.getElementById('s-pending').textContent = f.filter(hasPending).length;
   document.getElementById('s-done').textContent    = f.filter(fullyIssued).length;
 }
 
 function mBadge(val) {
-  if (!val||val==='No'||val==='') return `<span class="badge bv-no">No</span>`;
-  if (val==='Yes') return `<span class="badge bv-yes">YES</span>`;
-  if (val.toUpperCase()==='MILK') return `<span class="badge bv-milk">MILK</span>`;
-  if (val.toUpperCase()==='PLAIN') return `<span class="badge bv-plain">PLAIN</span>`;
+  if (!val || val === 'No' || val === '') return `<span class="badge bv-no">No</span>`;
+  if (val === 'Yes') return `<span class="badge bv-yes">YES</span>`;
+  if (val.toUpperCase() === 'MILK')  return `<span class="badge bv-milk">MILK</span>`;
+  if (val.toUpperCase() === 'PLAIN') return `<span class="badge bv-plain">PLAIN</span>`;
   return `<span class="badge bv-yes">${esc(val)}</span>`;
 }
-function iBadge(req,iss) {
-  if (!req||req==='No'||req==='') return `<span style="color:#333">—</span>`;
-  if (iss==='Yes') return `<span class="badge bv-issued">✓</span>`;
+function iBadge(req, iss) {
+  if (!req || req === 'No' || req === '') return `<span style="color:#2a2a2a">—</span>`;
+  if (iss === 'Yes') return `<span class="badge bv-issued">✓</span>`;
   return `<span class="badge bv-pending">●</span>`;
 }
 
 function renderTable(records) {
   const state = document.getElementById('dash-state');
   const table = document.getElementById('dash-table');
-  if (!records.length) { state.innerHTML='<span class="empty-icon">📭</span>No records match.'; state.style.display='block'; table.style.display='none'; return; }
-  state.style.display='none'; table.style.display='table';
-  document.getElementById('dash-tbody').innerHTML = records.map(r=>`<tr>
+  if (!records.length) {
+    state.innerHTML = '<span class="empty-icon">📭</span>No records match.';
+    state.style.display = 'block'; table.style.display = 'none'; return;
+  }
+  state.style.display = 'none'; table.style.display = 'table';
+  document.getElementById('dash-tbody').innerHTML = records.map(r => `<tr>
     <td class="emp-id">${esc(r.emp_no)}</td>
     <td>${esc(r.emp_name)}</td>
     <td style="color:var(--muted)">${esc(r.emp_dept)}</td>
     <td>${esc(r.emp_shift)}</td>
-    <td style="color:var(--muted)">${esc(r._date)}</td>
+    <td style="color:var(--muted);font-size:10px">${esc(r._date)}</td>
     <td>${mBadge(r['Tea 01'])} ${iBadge(r['Tea 01'],r['Tea 01 Issued'])}</td>
     <td>${mBadge(r['Lunch'])} ${iBadge(r['Lunch'],r['Lunch Issued'])}</td>
     <td>${mBadge(r['Tea 02'])} ${iBadge(r['Tea 02'],r['Tea 02 Issued'])}</td>
     <td>${mBadge(r['Breakfast'])} ${iBadge(r['Breakfast'],r['Breakfast Issued'])}</td>
     <td>${mBadge(r['Dinner'])} ${iBadge(r['Dinner'],r['Dinner Issued'])}</td>
-    <td>${hasPending(r)?'<span class="badge bv-pending">PENDING</span>':fullyIssued(r)?'<span class="badge bv-issued">DONE</span>':'<span style="color:#333">—</span>'}</td>
+    <td>${hasPending(r)
+      ? '<span class="badge bv-pending">PENDING</span>'
+      : fullyIssued(r)
+        ? '<span class="badge bv-issued">DONE</span>'
+        : '<span style="color:#2a2a2a">—</span>'
+    }</td>
   </tr>`).join('');
 }
 
 function sortBy(col) {
-  sortDir = sortCol===col ? sortDir*-1 : -1;
+  sortDir = sortCol === col ? sortDir * -1 : -1;
   sortCol = col;
   applyFilters();
 }
 
 function exportCSV() {
-  const h=['emp_no','emp_name','emp_dept','emp_shift','_date','Tea 01','Tea 01 Issued','Lunch','Lunch Issued','Tea 02','Tea 02 Issued','Breakfast','Breakfast Issued','Dinner','Dinner Issued'];
-  const rows=allRecords.map(r=>h.map(k=>`"${(r[k]||'').toString().replace(/"/g,'""')}"`).join(','));
-  const a=document.createElement('a');
-  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent([h.join(','),...rows].join('\n'));
-  a.download=`mealtrack_${new Date().toISOString().split('T')[0]}.csv`;
+  const h = ['emp_no','emp_name','emp_dept','emp_shift','_date',
+             'Tea 01','Tea 01 Issued','Lunch','Lunch Issued','Tea 02','Tea 02 Issued',
+             'Breakfast','Breakfast Issued','Dinner','Dinner Issued'];
+  const rows = allRecords.map(r => h.map(k => `"${(r[k]||'').toString().replace(/"/g,'""')}"`).join(','));
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent([h.join(','), ...rows].join('\n'));
+  a.download = `mealtrack_${new Date().toISOString().split('T')[0]}.csv`;
   a.click();
 }
 
-// ════════════════════════════════════════════
+// ═══════════════════════════════════════════
 // MEAL REQUEST
-// ════════════════════════════════════════════
-async function autoFillEmployee() {
-  const empNo = document.getElementById('req-empno').value.trim();
-  if (!empNo) { clearEmpFields(); return; }
-  // search users by emp_no
-  const user = Object.values(allUsers).find(u => String(u.emp_no) === empNo);
-  if (user) {
-    document.getElementById('req-name').value  = user.name  || '';
-    document.getElementById('req-dept').value  = user.emp_dept || user.dept || '';
-    document.getElementById('req-shift').value = user.shift || user.emp_shift || '';
-    // show boarding section if boarding employee
-    const isBoarding = user.boarding === 'true' || user.boarding === true;
-    document.getElementById('boarding-section').style.display = isBoarding ? 'block' : 'none';
-  } else {
-    clearEmpFields();
+// ═══════════════════════════════════════════
+function updateRequestPage() {
+  const div = document.getElementById('req-time-window');
+  const shift = currentUser ? currentUser.shift : '';
+  const hm = getHourMin();
+  const isOpen = isShiftWindowOpen(shift);
+  const role = (currentUser?.role||'Employee').toLowerCase();
+  const isAdmin = role === 'admin' || role === 'canteen';
+
+  let cls = isOpen || isAdmin ? 'sm-success' : 'sm-error';
+  let msg = '';
+  if (isAdmin) {
+    msg = '⚙ Admin override — request window always open';
+  } else if (shift === 'A' || shift === 'G') {
+    msg = isOpen
+      ? '🟢 Day shift (A/G) — request window OPEN (06:00 – 10:00)'
+      : `🔴 Day shift (A/G) — window closed. Opens 06:00–10:00`;
+  } else if (shift === 'B') {
+    msg = isOpen
+      ? '🟢 Night shift (B) — request window OPEN (18:00 – 21:00)'
+      : `🔴 Night shift (B) — window closed. Opens 18:00–21:00`;
   }
+
+  div.innerHTML = msg ? `<div class="time-window-bar"><div class="tw-dot ${isOpen||isAdmin?'tw-open':'tw-closed'}"></div><span style="font-family:var(--mono);font-size:11px;color:var(--muted)">${msg}</span></div>` : '';
+
+  // Boarding section update
+  const isBoarding = currentUser && (currentUser.Boarding === 'YES' || currentUser.boarding === 'YES' || currentUser.boarding === true);
+  const isBFEligible = currentUser && (currentUser['BF Eligible'] === 'YES' || currentUser.bf_eligible === 'YES');
+  const isMaintenance = currentUser && (currentUser.dept||'').toUpperCase() === 'MAINTENANCE';
+  const showBoarding = isBoarding || isBFEligible || isMaintenance || isAdmin;
+  document.getElementById('boarding-section').style.display = showBoarding ? 'block' : 'none';
+
+  // Friday weekend meals
+  const fridayDiv = document.getElementById('friday-section');
+  fridayDiv.style.display = (isFriday() && showBoarding) ? 'block' : 'none';
+
+  // Boarding time note
+  const note = document.getElementById('boarding-time-note');
+  const canBF = canRequestBoardingMeals();
+  const canDin = canRequestDinner();
+  if (isFriday()) {
+    note.className = 'status-msg sm-warn';
+    note.textContent = '📅 Friday — you can request breakfast & dinner for Saturday AND Sunday below';
+  } else if (!canBF) {
+    note.className = 'status-msg sm-error';
+    note.textContent = '⛔ Boarding meal window has closed for tonight (after 21:00)';
+  } else if (!canDin) {
+    note.className = 'status-msg sm-warn';
+    note.textContent = '⚠ Dinner request window closed (must be before 14:00). Breakfast still open.';
+  } else {
+    note.className = 'status-msg sm-info';
+    note.textContent = '🏠 Boarding: request breakfast by 21:00 · dinner by 14:00';
+  }
+}
+
+async function autoFillEmployee() {
+  const empno = document.getElementById('req-empno').value.trim();
+  if (!empno) { clearEmpFields(); return; }
+  // Search in cached allUsers
+  const emp = allUsers[empno];
+  if (emp) fillEmpFields(empno, emp);
+  else clearEmpFields();
+}
+
+async function fetchEmployeeData() {
+  const empno = document.getElementById('req-empno').value.trim();
+  if (!empno) { showStatus(document.getElementById('req-status'), 'Enter employee number first', 'error'); return; }
+  showStatus(document.getElementById('req-status'), 'Fetching employee data…', 'info');
+  try {
+    let data = await fbGet(`${EMP_NODE}/${empno}`);
+    if (!data) { showStatus(document.getElementById('req-status'), 'Employee not found in database', 'error'); return; }
+    if (typeof data === 'string') { try { data = JSON.parse(data); } catch(e){} }
+    allUsers[empno] = data;
+    fillEmpFields(empno, data);
+    showStatus(document.getElementById('req-status'), `✓ Loaded: ${data.username||empno}`, 'success');
+    updateRequestPage();
+  } catch(e) {
+    showStatus(document.getElementById('req-status'), 'Error fetching employee: '+e.message, 'error');
+  }
+}
+
+function fillEmpFields(empno, data) {
+  document.getElementById('req-name').value  = data.username || data.name || '';
+  document.getElementById('req-dept').value  = data.dept || data.emp_dept || '';
+  document.getElementById('req-shift').value = data.shift || data.emp_shift || '';
+
+  const isBoarding   = data.Boarding === 'YES' || data.boarding === 'YES' || data.boarding === true;
+  const isBFEligible = data['BF Eligible'] === 'YES' || data.bf_eligible === 'YES';
+  const isMaint      = (data.dept||'').toUpperCase() === 'MAINTENANCE';
+  document.getElementById('boarding-section').style.display = (isBoarding || isBFEligible || isMaint) ? 'block' : 'none';
+  document.getElementById('friday-section').style.display = (isFriday() && (isBoarding||isBFEligible||isMaint)) ? 'block' : 'none';
 }
 
 function clearEmpFields() {
@@ -751,165 +1369,220 @@ function clearEmpFields() {
 
 function setMeal(type, val, btn, cls) {
   meals[type] = val;
-  const group = btn.parentElement;
+  const group = btn.closest('.toggle-group');
   group.querySelectorAll('.tgl').forEach(b => b.className = 'tgl');
   btn.classList.add(cls);
 }
 
 async function submitRequest() {
-  const empNo  = document.getElementById('req-empno').value.trim();
-  const name   = document.getElementById('req-name').value.trim();
-  const dept   = document.getElementById('req-dept').value.trim();
-  const shift  = document.getElementById('req-shift').value.trim();
+  const empno = document.getElementById('req-empno').value.trim();
+  const name  = document.getElementById('req-name').value.trim();
+  const dept  = document.getElementById('req-dept').value.trim();
+  const shift = document.getElementById('req-shift').value.trim();
   const status = document.getElementById('req-status');
 
-  if (!empNo || !name || !shift) {
-    showStatus(status, 'Please enter employee number and ensure employee is found', 'error');
+  if (!empno || !name || !shift) {
+    showStatus(status, 'Please enter employee number and ensure employee is found', 'error'); return;
+  }
+
+  // Time window check (admin bypass)
+  const role = (currentUser?.role||'Employee').toLowerCase();
+  const isAdmin = role === 'admin' || role === 'canteen';
+  if (!isAdmin && !isShiftWindowOpen(shift)) {
+    showStatus(status, `⛔ Request window is closed for ${shift} shift. Please submit during your window.`, 'error');
     return;
   }
 
-  const today   = new Date();
-  const todayKey = keyDate(today);
-  const recKey   = `${empNo}_${shift}_${todayKey}`;
-  const now      = displayDate(today);
-  const tomDisp  = displayDate(tomorrow());
+  const todayKey  = keyDate(now());
+  const recKey    = todayKey;
+  const now2      = displayDate(now());
+  const tomDisp   = displayDate(tomorrow());
 
-  showStatus(status, 'Checking for existing record...', 'info');
+  showStatus(status, 'Checking for existing record…', 'info');
 
   try {
-    const existing = await fbGet(`${BKT}/${recKey}`);
-
-    // If record exists, check if all meals are No
+    // Check if today's record already exists
+    const existing = await fbGet(`${REQ_NODE}/${empno}/${recKey}`);
     if (existing) {
-      const allNo = existing['Tea 01']==='No' && existing['Lunch']==='No' && existing['Tea 02']==='No';
-      if (!allNo) {
-        showStatus(status, `⚠ Record already exists for ${name} — ${shift} Shift — ${now}`, 'error');
-        return;
-      }
+      showStatus(status, `⚠ Request already submitted for ${name} today (${now2}). Cannot submit again.`, 'error');
+      return;
     }
 
-    const user = Object.values(allUsers).find(u => String(u.emp_no) === empNo);
-    const isBoarding = user && (user.boarding === 'true' || user.boarding === true);
-
+    // Build record
     const record = {
-      emp_no: empNo, emp_name: name, emp_dept: dept, emp_shift: shift,
-      Boarding: isBoarding ? 'true' : 'false',
-      'Tea 01': meals.tea1,       'Tea 01 Date': now,    'Tea 01 Issued': 'No',
-      'Lunch':  meals.lunch,      'Lunch Date':  now,    'Lunch Issued':  'No',
-      'Tea 02': meals.tea2,       'Tea 02 Date': now,    'Tea 02 Issued': 'No',
-      'Breakfast': meals.breakfast,'Breakfast Date': tomDisp,'Breakfast Issued':'No',
-      'Dinner':    meals.dinner,   'Dinner Date': tomDisp,   'Dinner Issued':   'No',
-      requested_at: now
+      emp_no: empno, emp_name: name, emp_dept: dept, emp_shift: shift,
+      'Tea 01': meals.tea1, 'Tea 01 Issued': 'No',
+      'Lunch':  meals.lunch, 'Lunch Issued': 'No',
+      'Tea 02': meals.tea2, 'Tea 02 Issued': 'No',
+      'Breakfast': meals.breakfast, 'Breakfast Issued': 'No',
+      'Dinner':    meals.dinner,    'Dinner Issued':    'No',
+      requested_at: now2,
+      date_display: now2
     };
 
-    await fbSet(`${BKT}/${recKey}`, record);
-    showStatus(status, `✓ Request saved — ${name} · ${shift} Shift · ${now}`, 'success');
+    // Friday weekend meals
+    if (isFriday()) {
+      record['Sat Breakfast'] = meals.sat_bf;
+      record['Sat Dinner']    = meals.sat_di;
+      record['Sun Breakfast'] = meals.sun_bf;
+      record['Sun Dinner']    = meals.sun_di;
+      record['Sat Breakfast Issued'] = 'No';
+      record['Sat Dinner Issued']    = 'No';
+      record['Sun Breakfast Issued'] = 'No';
+      record['Sun Dinner Issued']    = 'No';
+    }
 
-    // update local records
-    const r = {...record, _key: recKey, _date: `${todayKey.replace('_',' ')}`};
-    const idx = allRecords.findIndex(x => x._key === recKey);
-    if (idx >= 0) allRecords[idx] = r; else allRecords.push(r);
+    await fbSet(`${REQ_NODE}/${empno}/${recKey}`, record);
+    showStatus(status, `✓ Request saved — ${name} · ${shift} shift · ${now2}`, 'success');
 
-    // clear after 1.5s
+    // Cache locally
+    const r = { ...record, _key: `${empno}/${recKey}`, _empKey: empno, _dateKey: recKey, _date: recKey.replace(/_/g,' ') };
+    allRecords = allRecords.filter(x => x._key !== r._key);
+    allRecords.push(r);
+
     setTimeout(() => {
       document.getElementById('req-empno').value = '';
       clearEmpFields();
       Object.keys(meals).forEach(k => meals[k] = 'No');
-      // reset toggles
-      ['tea1','lunch','tea2','breakfast','dinner'].forEach(id => {
-        document.querySelectorAll(`#tgl-${id} .tgl`).forEach((b,i,arr) => {
-          b.className = 'tgl' + (i===arr.length-1 ? ' active-no' : '');
-        });
-      });
+      resetToggles();
       document.getElementById('req-empno').focus();
-    }, 1500);
+    }, 1800);
 
   } catch(e) {
     showStatus(status, `Error: ${e.message}`, 'error');
   }
 }
 
+function resetToggles() {
+  ['tea1','lunch','tea2','breakfast','dinner','sat-bf','sat-di','sun-bf','sun-di'].forEach(id => {
+    const g = document.getElementById(`tgl-${id}`);
+    if (!g) return;
+    g.querySelectorAll('.tgl').forEach((b, i, arr) => {
+      b.className = i === arr.length - 1 ? 'tgl active-no' : 'tgl';
+    });
+  });
+}
+
 function clearRequest() {
   document.getElementById('req-empno').value = '';
   clearEmpFields();
   Object.keys(meals).forEach(k => meals[k] = 'No');
+  resetToggles();
   document.getElementById('req-status').innerHTML = '';
 }
 
-// ════════════════════════════════════════════
+// ═══════════════════════════════════════════
 // ISSUE MEALS
-// ════════════════════════════════════════════
-async function searchIssue() {
-  const empNo = document.getElementById('issue-empno').value.trim();
-  if (!empNo) return;
+// ═══════════════════════════════════════════
+async function fetchAndSearchIssue() {
+  const empno = document.getElementById('issue-empno').value.trim();
+  if (!empno) { return; }
   const div = document.getElementById('issue-result');
-  div.innerHTML = '<div class="empty"><span class="empty-icon">⏳</span>Searching...</div>';
-
-  const todayKey = keyDate(new Date());
-  const shifts = ['A','B','G'];
-  let found = null, foundKey = null;
-
-  // Try today's structured keys
-  for (const sh of shifts) {
-    const key = `${empNo}_${sh}_${todayKey}`;
-    const rec = allRecords.find(r => r._key === key);
-    if (rec) { found = rec; foundKey = key; break; }
+  div.innerHTML = '<div class="empty"><span class="empty-icon">⏳</span>Fetching from database…</div>';
+  try {
+    const empData = await fbGet(`${REQ_NODE}/${empno}`);
+    if (!empData) { div.innerHTML = `<div class="empty"><span class="empty-icon">🔍</span>No requests found for employee ${esc(empno)}</div>`; return; }
+    searchIssue();
+  } catch(e) {
+    div.innerHTML = `<div class="empty"><span class="empty-icon">⚠</span>Error: ${e.message}</div>`;
   }
-  // Fallback: latest record by emp_no
-  if (!found) {
-    const recs = allRecords.filter(r => r.emp_no === empNo).sort((a,b)=>parseDate(b._date)-parseDate(a._date));
-    if (recs.length) { found = recs[0]; foundKey = recs[0]._key; }
-  }
-
-  if (!found) {
-    div.innerHTML = `<div class="empty"><span class="empty-icon">🔍</span>No record found for employee ${esc(empNo)} today.</div>`;
-    return;
-  }
-  renderIssueCard(found, foundKey, div);
 }
 
-function renderIssueCard(r, key, div) {
-  const isBoarding = r['Boarding'] === 'true';
+async function searchIssue() {
+  const empno = document.getElementById('issue-empno').value.trim();
+  if (!empno) return;
+  const div = document.getElementById('issue-result');
+  div.innerHTML = '<div class="empty"><span class="empty-icon">⏳</span>Searching…</div>';
+
+  const todayKey = keyDate(now());
+
+  // First check local cache
+  let found = allRecords.find(r => r._empKey === empno && r._dateKey === todayKey);
+
+  // If not in cache, fetch from DB
+  if (!found) {
+    try {
+      const rec = await fbGet(`${REQ_NODE}/${empno}/${todayKey}`);
+      if (rec) {
+        found = {
+          ...rec, _key: `${empno}/${todayKey}`,
+          _empKey: empno, _dateKey: todayKey,
+          _date: todayKey.replace(/_/g,' ')
+        };
+        // Normalize
+        found.emp_no = found.emp_no || empno;
+        ['Tea 01','Tea 02','Lunch','Breakfast','Dinner'].forEach(f => { found[f] = found[f] || 'No'; });
+        ['Tea 01 Issued','Tea 02 Issued','Lunch Issued','Breakfast Issued','Dinner Issued'].forEach(f => { found[f] = found[f] || 'No'; });
+      }
+    } catch(e) {}
+  }
+
+  if (!found) {
+    // Try most recent record
+    const recs = allRecords.filter(r => r.emp_no === empno || r._empKey === empno)
+      .sort((a,b) => parseDateStr(b._date) - parseDateStr(a._date));
+    if (recs.length) found = recs[0];
+  }
+
+  if (!found) {
+    div.innerHTML = `<div class="empty"><span class="empty-icon">🔍</span>No record found for employee <strong style="color:var(--green)">${esc(empno)}</strong> today.<br><br><span style="font-size:10px">Use ⬇ GET to fetch from database</span></div>`;
+    return;
+  }
+  renderIssueCard(found, div);
+}
+
+function renderIssueCard(r, div) {
+  const isFriRecord = r['Sat Breakfast'] !== undefined;
   const shiftMeals = [
-    {lbl:'Tea 01',  req:r['Tea 01'],    iss:r['Tea 01 Issued'],    field:'Tea 01 Issued'},
-    {lbl:'Lunch',   req:r['Lunch'],     iss:r['Lunch Issued'],     field:'Lunch Issued'},
-    {lbl:'Tea 02',  req:r['Tea 02'],    iss:r['Tea 02 Issued'],    field:'Tea 02 Issued'},
+    { lbl:'Tea 01',   req:r['Tea 01'],    iss:r['Tea 01 Issued'],    field:'Tea 01 Issued' },
+    { lbl:'Lunch',    req:r['Lunch'],     iss:r['Lunch Issued'],     field:'Lunch Issued' },
+    { lbl:'Tea 02',   req:r['Tea 02'],    iss:r['Tea 02 Issued'],    field:'Tea 02 Issued' },
   ];
   const boardMeals = [
-    {lbl:'Breakfast',req:r['Breakfast'],iss:r['Breakfast Issued'],field:'Breakfast Issued'},
-    {lbl:'Dinner',   req:r['Dinner'],   iss:r['Dinner Issued'],   field:'Dinner Issued'},
+    { lbl:'Breakfast', req:r['Breakfast'], iss:r['Breakfast Issued'], field:'Breakfast Issued' },
+    { lbl:'Dinner',    req:r['Dinner'],    iss:r['Dinner Issued'],    field:'Dinner Issued' },
   ];
+  const hasBoardMeal = boardMeals.some(m => m.req && m.req !== 'No');
+
+  const weekendMeals = isFriRecord ? [
+    { lbl:'Sat BF',  req:r['Sat Breakfast'], iss:r['Sat Breakfast Issued'], field:'Sat Breakfast Issued' },
+    { lbl:'Sat Din', req:r['Sat Dinner'],    iss:r['Sat Dinner Issued'],    field:'Sat Dinner Issued' },
+    { lbl:'Sun BF',  req:r['Sun Breakfast'], iss:r['Sun Breakfast Issued'], field:'Sun Breakfast Issued' },
+    { lbl:'Sun Din', req:r['Sun Dinner'],    iss:r['Sun Dinner Issued'],    field:'Sun Dinner Issued' },
+  ] : [];
 
   function mealBox(m) {
     const req = m.req && m.req !== 'No' && m.req !== '';
     const iss = m.iss === 'Yes';
     const cls = !req ? 'mib-notreq' : iss ? 'mib-issued' : 'mib-pending';
     const txt = !req ? 'Not Requested' : iss ? '✓ Issued' : 'Issue ✓';
-    const click = (!req||iss) ? '' : `onclick="issueItem('${key}','${m.field}',this,event)"`;
+    const dataKey = encodeURIComponent(r._key);
+    const click = (!req || iss) ? '' : `onclick="issueItem('${r._key}','${m.field}',this)"`;
     return `<div class="meal-box">
       <div class="meal-box-lbl">${m.lbl}</div>
-      <div class="meal-box-val" style="color:${!req?'#333':m.req==='MILK'?'var(--amber)':m.req==='PLAIN'?'var(--blue)':'var(--accent)'}">${m.req||'No'}</div>
+      <div class="meal-box-val" style="color:${!req?'#333':m.req==='MILK'?'var(--amber)':m.req==='PLAIN'?'var(--blue)':'var(--green)'}">${esc(m.req||'No')}</div>
       <button class="meal-issue-btn ${cls}" ${click}>${txt}</button>
     </div>`;
   }
 
   div.innerHTML = `<div class="issue-card">
-    <div class="issue-emp-name">${esc(r.emp_name)} <span style="color:var(--accent)">— ${esc(r.emp_no)}</span></div>
-    <div class="issue-emp-sub">${esc(r.emp_shift)} Shift · ${esc(r.emp_dept)} · ${esc(r._date)}${isBoarding?' · 🏠 Boarding':''}</div>
+    <div class="issue-emp-name">${esc(r.emp_name||r.emp_no)} <span style="color:var(--green)">— #${esc(r.emp_no)}</span></div>
+    <div class="issue-emp-sub">${esc(r.emp_shift||'')} Shift · ${esc(r.emp_dept||'')} · ${esc(r._date)}</div>
     <div class="meal-grid">${shiftMeals.map(mealBox).join('')}</div>
-    ${isBoarding ? `<div class="board-sep">🏠 Boarding Meals</div><div class="meal-grid">${boardMeals.map(mealBox).join('')}</div>` : ''}
+    ${hasBoardMeal ? `<div class="board-sep">🏠 Boarding Meals</div><div class="meal-grid">${boardMeals.map(mealBox).join('')}</div>` : ''}
+    ${weekendMeals.length ? `<div class="board-sep">📅 Weekend Meals</div><div class="meal-grid">${weekendMeals.map(mealBox).join('')}</div>` : ''}
   </div>`;
 }
 
-async function issueItem(key, field, btn, e) {
-  e.preventDefault();
-  btn.textContent = '...';
+async function issueItem(key, field, btn) {
+  btn.textContent = '…';
   btn.disabled = true;
   try {
-    await fbSet(`${BKT}/${key}/${field}`, 'Yes');
+    await fbSet(`${REQ_NODE}/${key}/${field}`, 'Yes');
     btn.textContent = '✓ Issued';
     btn.className = 'meal-issue-btn mib-issued';
-    // update local
+    btn.disabled = true;
+    // Update local cache
     const rec = allRecords.find(r => r._key === key);
     if (rec) rec[field] = 'Yes';
   } catch(e) {
@@ -918,168 +1591,227 @@ async function issueItem(key, field, btn, e) {
   }
 }
 
-// ════════════════════════════════════════════
+// ═══════════════════════════════════════════
 // USERS
-// ════════════════════════════════════════════
+// ═══════════════════════════════════════════
 async function loadUsers() {
   try {
-    const data = await fbGet('Users');
-    allUsers = data || {};
+    const data = await fbGet(EMP_NODE);
+    allUsers = {};
+    if (data) {
+      Object.entries(data).forEach(([key, val]) => {
+        try {
+          const emp = typeof val === 'string' ? JSON.parse(val) : val;
+          allUsers[key] = emp;
+        } catch(e) {}
+      });
+    }
     renderUsers();
-  } catch(e) { console.log('Users load error:', e); }
+  } catch(e) { console.warn('Users load error:', e); }
 }
 
 function renderUsers() {
   const q = (document.getElementById('user-search')?.value||'').toLowerCase();
   const entries = Object.entries(allUsers).filter(([k,v]) =>
-    !q || `${v.emp_no} ${v.name} ${k}`.toLowerCase().includes(q)
+    !q || `${k} ${v.username||''} ${v.dept||''}`.toLowerCase().includes(q)
   );
   const state = document.getElementById('users-state');
   const table = document.getElementById('users-table');
   if (!state) return;
-  document.getElementById('user-count').textContent = `${entries.length} users`;
-  if (!entries.length) { state.innerHTML='<span class="empty-icon">👤</span>No users found.'; state.style.display='block'; table.style.display='none'; return; }
-  state.style.display='none'; table.style.display='table';
-  document.getElementById('users-tbody').innerHTML = entries.map(([username, u]) => `<tr>
-    <td class="emp-id">${esc(u.emp_no||'—')}</td>
-    <td>${esc(u.name||'—')}</td>
-    <td>${esc(username)}</td>
-    <td style="color:var(--muted)">${esc(u.emp_dept||u.dept||'—')}</td>
-    <td>${esc(u.shift||u.emp_shift||'—')}</td>
-    <td><span class="badge ${u.role==='admin'?'bv-red':u.role==='canteen'?'bv-plain':'bv-no'}">${esc(u.role||'user')}</span></td>
-    <td>${u.boarding==='true'||u.boarding===true?'<span class="badge bv-issued">YES</span>':'<span class="badge bv-no">No</span>'}</td>
-    <td><div class="user-row-actions"><button class="btn-danger" onclick="deleteUser('${username}','${esc(u.name||username)}')">DELETE</button></div></td>
+  document.getElementById('user-count').textContent = `${entries.length} employees`;
+  if (!entries.length) {
+    state.innerHTML = '<span class="empty-icon">👤</span>No employees found.';
+    state.style.display = 'block'; table.style.display = 'none'; return;
+  }
+  state.style.display = 'none'; table.style.display = 'table';
+  document.getElementById('users-tbody').innerHTML = entries.map(([empno, u]) => `<tr>
+    <td class="emp-id">${esc(empno)}</td>
+    <td>${esc(u.username || '—')}</td>
+    <td style="color:var(--muted)">${esc(empno)}</td>
+    <td style="color:var(--muted)">${esc(u.dept||'—')}</td>
+    <td>${esc(u.shift||'—')}</td>
+    <td><span class="badge ${
+      (u.role||'').toLowerCase()==='admin' ? 'bv-admin' :
+      (u.role||'').toLowerCase()==='canteen' ? 'bv-canteen' : 'bv-no'
+    }">${esc(u.role||'Employee')}</span></td>
+    <td>${u.Boarding==='YES'||u.boarding===true ? '<span class="badge bv-issued">YES</span>' : '<span class="badge bv-no">No</span>'}</td>
+    <td>${u['BF Eligible']==='YES' ? '<span class="badge bv-amber">YES</span>' : '<span class="badge bv-no">No</span>'}</td>
+    <td><button class="btn-danger" onclick="deleteUser('${empno}','${esc(u.username||empno)}')">DELETE</button></td>
   </tr>`).join('');
 }
 
-async function deleteUser(username, name) {
-  if (!confirm(`Delete user "${name}" (${username})?`)) return;
+async function deleteUser(empno, name) {
+  if (!confirm(`Delete employee "${name}" (${empno})?`)) return;
   try {
-    await fetch(`${DB}/Users/${username}.json`, {method:'DELETE'});
-    delete allUsers[username];
+    await fbDel(`${EMP_NODE}/${empno}`);
+    delete allUsers[empno];
     renderUsers();
-  } catch(e) { alert('Error deleting user'); }
+  } catch(e) { alert('Error: ' + e.message); }
 }
 
-// ════════════════════════════════════════════
+// ═══════════════════════════════════════════
 // REGISTER
-// ════════════════════════════════════════════
+// ═══════════════════════════════════════════
+function updateBFEligibility() {
+  const boarding = document.getElementById('reg-boarding').value;
+  if (boarding === 'YES') {
+    document.getElementById('reg-bf').value = 'YES';
+  }
+}
+
 async function registerUser() {
   const empno    = document.getElementById('reg-empno').value.trim();
-  const name     = document.getElementById('reg-name').value.trim();
-  const username = document.getElementById('reg-username').value.trim().toLowerCase();
+  const name     = document.getElementById('reg-username').value.trim();
   const password = document.getElementById('reg-password').value;
   const dept     = document.getElementById('reg-dept').value;
   const shift    = document.getElementById('reg-shift').value;
   const role     = document.getElementById('reg-role').value;
   const boarding = document.getElementById('reg-boarding').value;
+  const bf       = document.getElementById('reg-bf').value;
   const status   = document.getElementById('reg-status');
 
-  if (!empno||!name||!username||!password||!dept||!shift) {
-    showStatus(status,'Please fill all required fields','error'); return;
+  if (!empno || !name || !password || !dept || !shift) {
+    showStatus(status, 'Please fill all required fields', 'error'); return;
   }
 
-  showStatus(status,'Checking username...','info');
-
+  showStatus(status, 'Checking employee number…', 'info');
   try {
-    const existing = await fbGet(`Users/${username}`);
-    if (existing) { showStatus(status,'Username already exists — choose another','error'); return; }
+    const existing = await fbGet(`${EMP_NODE}/${empno}`);
+    if (existing) { showStatus(status, `Employee #${empno} already registered`, 'error'); return; }
 
-    const user = { emp_no: empno, name, username, password, emp_dept: dept, shift, role, boarding, registered_at: displayDate(new Date()) };
-    await fbSet(`Users/${username}`, user);
-    allUsers[username] = user;
+    const empData = {
+      username: name,
+      password: password,
+      dept: dept,
+      shift: shift,
+      role: role,
+      Boarding: boarding,
+      'BF Eligible': bf,
+      registered_at: displayDate(now())
+    };
+
+    await fbSet(`${EMP_NODE}/${empno}`, empData);
+    allUsers[empno] = empData;
     renderUsers();
-    showStatus(status, `✓ User registered — ${name} (${username})`, 'success');
+    showStatus(status, `✓ Employee #${empno} (${name}) registered`, 'success');
 
-    // Generate QR code
-    document.getElementById('qr-preview').style.display = 'block';
-    document.getElementById('qr-label').textContent = `${name} · EMP ${empno}`;
-    const qrDiv = document.getElementById('qr-code');
+    // QR code
+    document.getElementById('reg-qr-preview').style.display = 'block';
+    document.getElementById('reg-qr-label').textContent = `${name} · EMP #${empno}`;
+    const qrDiv = document.getElementById('reg-qr-code');
     qrDiv.innerHTML = '';
-    new QRCode(qrDiv, { text: empno, width: 120, height: 120, colorDark:'#1a1814', colorLight:'#ffffff' });
-
+    new QRCode(qrDiv, { text: empno, width: 128, height: 128, colorDark: '#000', colorLight: '#fff' });
   } catch(e) {
     showStatus(status, `Error: ${e.message}`, 'error');
   }
 }
 
 function clearRegister() {
-  ['reg-empno','reg-name','reg-username','reg-password'].forEach(id => document.getElementById(id).value='');
+  ['reg-empno','reg-username','reg-password'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('reg-dept').value = '';
   document.getElementById('reg-shift').value = '';
-  document.getElementById('reg-role').value = 'user';
-  document.getElementById('reg-boarding').value = 'false';
+  document.getElementById('reg-role').value = 'Employee';
+  document.getElementById('reg-boarding').value = 'NO';
+  document.getElementById('reg-bf').value = 'NO';
   document.getElementById('reg-status').innerHTML = '';
-  document.getElementById('qr-preview').style.display = 'none';
+  document.getElementById('reg-qr-preview').style.display = 'none';
 }
 
-// ════════════════════════════════════════════
-// QR SCANNER
-// ════════════════════════════════════════════
+// ═══════════════════════════════════════════
+// QR SCANNER — Fixed with jsQR
+// ═══════════════════════════════════════════
 async function openQR(targetId) {
   qrTarget = targetId;
-  document.getElementById('qr-overlay').style.display = 'flex';
+  const overlay = document.getElementById('qr-overlay');
+  overlay.classList.add('open');
+
   try {
-    qrStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+    qrStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 640 }, height: { ideal: 640 } }
+    });
     const video = document.getElementById('qr-video');
     video.srcObject = qrStream;
-    video.play();
-    scanQR(video);
+    await video.play();
+    startQRScan(video);
   } catch(e) {
-    alert('Camera not available — type employee number manually');
     closeQR();
+    // Fallback: prompt
+    const val = prompt('Camera not available. Enter employee number manually:');
+    if (val && val.trim()) {
+      document.getElementById(targetId).value = val.trim();
+      if (targetId === 'req-empno') { autoFillEmployee(); }
+      if (targetId === 'issue-empno') { searchIssue(); }
+    }
   }
 }
 
-function scanQR(video) {
-  if (!qrStream) return;
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  const tick = () => {
+function startQRScan(video) {
+  const canvas = document.getElementById('qr-canvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+  function tick() {
     if (!qrStream) return;
     if (video.readyState === video.HAVE_ENOUGH_DATA) {
-      canvas.width = video.videoWidth;
+      canvas.width  = video.videoWidth;
       canvas.height = video.videoHeight;
-      ctx.drawImage(video,0,0,canvas.width,canvas.height);
-      try {
-        // Basic QR detection via imageData — works with jsQR if loaded
-        // Fallback: prompt manual entry
-        const img = ctx.getImageData(0,0,canvas.width,canvas.height);
-        if (window.jsQR) {
-          const code = window.jsQR(img.data, img.width, img.height);
-          if (code) {
-            document.getElementById(qrTarget).value = code.data;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      if (window.jsQR) {
+        try {
+          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const code = jsQR(imgData.data, imgData.width, imgData.height, {
+            inversionAttempts: 'dontInvert'
+          });
+          if (code && code.data) {
+            const val = code.data.trim();
+            document.getElementById(qrTarget).value = val;
             closeQR();
-            if (qrTarget === 'req-empno') autoFillEmployee();
+            if (qrTarget === 'req-empno') {
+              autoFillEmployee();
+              fetchEmployeeData();
+            }
             if (qrTarget === 'issue-empno') searchIssue();
             return;
           }
-        }
-      } catch(e){}
+        } catch(e) {}
+      }
     }
-    requestAnimationFrame(tick);
-  };
-  requestAnimationFrame(tick);
+    qrAnimFrame = requestAnimationFrame(tick);
+  }
+  qrAnimFrame = requestAnimationFrame(tick);
 }
 
 function closeQR() {
-  document.getElementById('qr-overlay').style.display = 'none';
-  if (qrStream) { qrStream.getTracks().forEach(t=>t.stop()); qrStream=null; }
+  document.getElementById('qr-overlay').classList.remove('open');
+  if (qrAnimFrame) { cancelAnimationFrame(qrAnimFrame); qrAnimFrame = null; }
+  if (qrStream) { qrStream.getTracks().forEach(t => t.stop()); qrStream = null; }
   qrTarget = null;
 }
 
-// ════════════════════════════════════════════
+// ═══════════════════════════════════════════
 // HELPERS
-// ════════════════════════════════════════════
+// ═══════════════════════════════════════════
 function showStatus(el, msg, type) {
-  const cls = type==='success'?'sm-success':type==='error'?'sm-error':'sm-info';
+  const cls = type === 'success' ? 'sm-success' : type === 'error' ? 'sm-error' : type === 'warn' ? 'sm-warn' : 'sm-info';
   el.innerHTML = `<div class="status-msg ${cls}">${msg}</div>`;
 }
 
-function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+function esc(s) {
+  return String(s||'')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
-// Auto-refresh every 90 seconds
-setInterval(loadDashboard, 90000);
+// Auto-refresh dashboard every 2 minutes
+setInterval(() => {
+  if (document.getElementById('page-dashboard').classList.contains('active')) {
+    loadDashboard();
+  }
+  showTimeBanner();
+}, 120000);
+
+// Update time banner every minute
+setInterval(showTimeBanner, 60000);
 </script>
 </body>
 </html>
