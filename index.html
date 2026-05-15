@@ -1480,37 +1480,35 @@ async function searchIssue() {
   div.innerHTML = '<div class="empty"><span class="empty-icon">⏳</span>Searching…</div>';
 
   const todayKey = keyDate(now());
+  const shifts = ['A','B','G'];
+  let found = null;
 
-  // First check local cache
-  let found = allRecords.find(r => r._empKey === empno && r._dateKey === todayKey);
+  // Check today's records in local cache first
+  for (const sh of shifts) {
+    const key = `${empno}_${sh}_${todayKey}`;
+    found = allRecords.find(r => r._key === key);
+    if (found) break;
+  }
 
-  // If not in cache, fetch from DB
+  // Fallback: fetch directly from DB
   if (!found) {
-    try {
-      const rec = await fbGet(`${REQ_NODE}/${empno}/${todayKey}`);
-      if (rec) {
-        found = {
-          ...rec, _key: `${empno}/${todayKey}`,
-          _empKey: empno, _dateKey: todayKey,
-          _date: todayKey.replace(/_/g,' ')
-        };
-        // Normalize
-        found.emp_no = found.emp_no || empno;
-        ['Tea 01','Tea 02','Lunch','Breakfast','Dinner'].forEach(f => { found[f] = found[f] || 'No'; });
-        ['Tea 01 Issued','Tea 02 Issued','Lunch Issued','Breakfast Issued','Dinner Issued'].forEach(f => { found[f] = found[f] || 'No'; });
-      }
-    } catch(e) {}
+    for (const sh of shifts) {
+      const key = `${empno}_${sh}_${todayKey}`;
+      try {
+        const rec = await fbGet(`${REQ_NODE}/${key}`);
+        if (rec) {
+          found = { ...rec, _key: key, _date: todayKey.replace(/_/g,' ') };
+          ['Tea 01','Tea 02','Lunch','Breakfast','Dinner'].forEach(f => { found[f] = found[f]||'No'; });
+          ['Tea 01 Issued','Tea 02 Issued','Lunch Issued','Breakfast Issued','Dinner Issued']
+            .forEach(f => { found[f] = found[f]||'No'; });
+          break;
+        }
+      } catch(e) {}
+    }
   }
 
   if (!found) {
-    // Try most recent record
-    const recs = allRecords.filter(r => r.emp_no === empno || r._empKey === empno)
-      .sort((a,b) => parseDateStr(b._date) - parseDateStr(a._date));
-    if (recs.length) found = recs[0];
-  }
-
-  if (!found) {
-    div.innerHTML = `<div class="empty"><span class="empty-icon">🔍</span>No record found for employee <strong style="color:var(--green)">${esc(empno)}</strong> today.<br><br><span style="font-size:10px">Use ⬇ GET to fetch from database</span></div>`;
+    div.innerHTML = `<div class="empty"><span class="empty-icon">🔍</span>No record found for <strong style="color:var(--green)">#${esc(empno)}</strong> today.</div>`;
     return;
   }
   renderIssueCard(found, div);
