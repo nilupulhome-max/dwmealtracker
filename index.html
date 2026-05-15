@@ -1380,19 +1380,18 @@ async function submitRequest() {
   }
 
   const todayKey  = keyDate(now());
-  const recKey    = todayKey;
+  const recKey = `${empno}_${shift}_${todayKey}`;
   const now2      = displayDate(now());
   const tomDisp   = displayDate(tomorrow());
 
   showStatus(status, 'Checking for existing record…', 'info');
 
-  try {
-    // Check if today's record already exists
-    const existing = await fbGet(`${REQ_NODE}/${empno}/${recKey}`);
-    if (existing) {
-      showStatus(status, `⚠ Request already submitted for ${name} today (${now2}). Cannot submit again.`, 'error');
-      return;
-    }
+const existing = await fbGet(`${REQ_NODE}/${recKey}`);
+if (existing) {
+  showStatus(status, `⚠ Request already submitted for ${name} today. Cannot submit again.`, 'error');
+  return;
+}
+
 
     // Build record
     const record = {
@@ -1418,7 +1417,7 @@ async function submitRequest() {
       record['Sun Dinner Issued']    = 'No';
     }
 
-    await fbSet(`${REQ_NODE}/${empno}/${recKey}`, record);
+    await fbSet(`${REQ_NODE}/${recKey}`, record);
     showStatus(status, `✓ Request saved — ${name} · ${shift} shift · ${now2}`, 'success');
 
     // Cache locally
