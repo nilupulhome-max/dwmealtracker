@@ -1567,8 +1567,6 @@ async function issueItem(key, field, btn) {
     await fbSet(`${REQ_NODE}/${key}/${field}`, 'Yes');
     btn.textContent = '✓ Issued';
     btn.className = 'meal-issue-btn mib-issued';
-    btn.disabled = true;
-    // Update local cache
     const rec = allRecords.find(r => r._key === key);
     if (rec) rec[field] = 'Yes';
   } catch(e) {
