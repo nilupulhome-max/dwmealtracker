@@ -1098,31 +1098,21 @@ async function loadDashboard() {
     const data = await fbGet(REQ_NODE);
     if (!data) { allRecords = []; renderTable([]); updateStats([]); return; }
 
-    allRecords = Object.entries(data).flatMap(([empKey, dateMap]) => {
-      if (typeof dateMap !== 'object') return [];
-      return Object.entries(dateMap).map(([dateKey, rec]) => {
-        if (!rec || typeof rec !== 'object') return null;
-        rec._key    = `${empKey}/${dateKey}`;
-        rec._empKey = empKey;
-        rec._dateKey = dateKey;
-        rec._date   = dateKey.replace(/_/g,' ');
-        rec.emp_no  = rec.emp_no  || empKey;
-        rec.emp_name  = rec.emp_name  || '';
-        rec.emp_dept  = rec.emp_dept  || '';
-        rec.emp_shift = rec.emp_shift || '';
-        rec['Tea 01']    = rec['Tea 01']    || 'No';
-        rec['Tea 02']    = rec['Tea 02']    || 'No';
-        rec['Lunch']     = rec['Lunch']     || 'No';
-        rec['Breakfast'] = rec['Breakfast'] || 'No';
-        rec['Dinner']    = rec['Dinner']    || 'No';
-        rec['Tea 01 Issued']    = rec['Tea 01 Issued']    || 'No';
-        rec['Tea 02 Issued']    = rec['Tea 02 Issued']    || 'No';
-        rec['Lunch Issued']     = rec['Lunch Issued']     || 'No';
-        rec['Breakfast Issued'] = rec['Breakfast Issued'] || 'No';
-        rec['Dinner Issued']    = rec['Dinner Issued']    || 'No';
-        return rec;
-      }).filter(Boolean);
-    });
+    allRecords = Object.entries(data).map(([key, val]) => {
+      let r = typeof val === 'string' ? JSON.parse(val) : val;
+      r._key      = key;
+      r._empKey   = r.emp_no || key;
+      r._dateKey  = key;
+      r._date     = r.date_display || key.replace(/_/g,' ');
+      r.emp_no    = r.emp_no    || '';
+      r.emp_name  = r.emp_name  || '';
+      r.emp_dept  = r.emp_dept  || '';
+      r.emp_shift = r.emp_shift || '';
+      ['Tea 01','Tea 02','Lunch','Breakfast','Dinner'].forEach(f => { r[f] = r[f] || 'No'; });
+      ['Tea 01 Issued','Tea 02 Issued','Lunch Issued','Breakfast Issued','Dinner Issued']
+        .forEach(f => { r[f] = r[f] || 'No'; });
+      return r;
+    }).filter(r => r.emp_no !== '');
 
     populateFilters();
     applyFilters();
