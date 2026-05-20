@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DWPMS Maintenance App</title>
+
+<!-- ========================================= -->
+<!-- SUPABASE LIBRARY -->
+<!-- ========================================= -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+
+/* ========================================= */
+/* GLOBAL STYLES */
+/* ========================================= */
+
+body{
+    margin:0;
+    font-family:Segoe UI;
+    background:#f4f7fb;
+}
+
+.header{
+    background:#1e3a8a;
+    color:white;
+    padding:15px;
+    text-align:Left;
+    font-size:22px;
+    font-weight:bold;
+}
+
+.container{
+    padding:15px;
+}
+
+.card{
+    background:white;
+    border-radius:15px;
+    padding:15px;
+    margin-bottom:15px;
+    box-shadow:0 4px 10px rgba(0,0,0,0.1);
+}
+
+.stats{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+    gap:10px;
+}
+
+.statBox{
+    background:white;
+    padding:15px;
+    border-radius:15px;
+    text-align:center;
+    box-shadow:0 4px 10px rgba(0,0,0,0.1);
+}
+
+.statBox h2{
+    margin:0;
+    font-size:14px;
+    color:#666;
+}
+
+.statBox p{
+    font-size:28px;
+    font-weight:bold;
+    margin-top:10px;
+}
+
+button{
+    border:none;
+    padding:12px;
+    border-radius:10px;
+    cursor:pointer;
+    font-weight:bold;
+}
+
+.filterBtn{
+    background:#1e3a8a;
+    color:white;
+    margin-right:10px;
+    margin-bottom:10px;
+}
+
+.completeBtn{
+    background:#16a34a;
+    color:white;
+    width:100%;
+}
+
+.yesBtn{
+    background:#16a34a;
+    color:white;
+}
+
+.noBtn{
+    background:#dc2626;
+    color:white;
+}
+
+.naBtn{
+    background:#6b7280;
+    color:white;
+}
+
+.selected{
+    border:3px solid black;
+}
+
+.taskCard{
+    background:white;
+    border-radius:15px;
+    padding:15px;
+    margin-bottom:15px;
+    box-shadow:0 4px 10px rgba(0,0,0,0.1);
+}
+
+.badge{
+    padding:5px 10px;
+    border-radius:20px;
+    color:white;
+    font-size:12px;
+}
+
+.pending{
+    background:orange;
+}
+
+.completed{
+    background:green;
+}
+
+textarea{
+    width:100%;
+    padding:10px;
+    border-radius:10px;
+    border:1px solid #ccc;
+    margin-top:10px;
+}
+
+input{
+    width:100%;
+    padding:12px;
+    border-radius:10px;
+    border:1px solid #ccc;
+    margin-bottom:10px;
+}
+
+.hidden{
+    display:none;
+}
+
+.actions{
+    display:flex;
+    gap:10px;
+    margin-top:10px;
+    flex-wrap:wrap;
+}
+
+</style>
+</head>
+
+<body>
+
+<!-- ========================================= -->
+<!-- LOGIN SCREEN -->
+<!-- ========================================= -->
+<div id="loginScreen">
+
+<div class="header">
+DWPMS Login
+</div>
+
+<div class="container">
+
+<div class="card">
+
+<input type="text" id="username" placeholder="Username">
+
+<input type="password" id="password" placeholder="Password">
+
+<button class="completeBtn" onclick="login()">
+Login
+</button>
+
+</div>
+
+</div>
+
+</div>
+
+<!-- ========================================= -->
+<!-- MAIN APPLICATION -->
+<!-- ========================================= -->
+<div id="appScreen" class="hidden">
+
+<div class="header">
+DWPMS Maintenance Dashboard
+</div>
+
+<div class="container">
+
+<!-- ========================================= -->
+<!-- DASHBOARD STATS -->
+<!-- ========================================= -->
+<div class="stats">
+
+<div class="statBox">
+<h2>Total Planned</h2>
+<p id="plannedCount">0</p>
+</div>
+
+<div class="statBox">
+<h2>Total Scheduled</h2>
+<p id="scheduledCount">0</p>
+</div>
+
+<div class="statBox">
+<h2>Pending</h2>
+<p id="pendingCount">0</p>
+</div>
+
+<div class="statBox">
+<h2>Completed</h2>
+<p id="completedCount">0</p>
+</div>
+
+</div>
+
+<!-- ========================================= -->
+<!-- FILTER BUTTONS -->
+<!-- ========================================= -->
+<div class="card">
+
+<button class="filterBtn" onclick="loadTasks('all')">
+All Tasks
+</button>
+
+<button class="filterBtn" onclick="loadTasks('week')">
+This Week Pending
+</button>
+
+</div>
+
+<!-- ========================================= -->
+<!-- TASK LIST -->
+<!-- ========================================= -->
+<div id="taskList"></div>
+
+<!-- ========================================= -->
+<!-- CHECKLIST SECTION -->
+<!-- ========================================= -->
+<div id="checklistSection" class="hidden">
+
+<div class="card">
+<h2 id="machineTitle"></h2>
+<h3 id="planTitle"></h3>
+</div>
+
+<div id="checklistContainer"></div>
+
+<div class="card">
+
+<h3>Comments</h3>
+
+<textarea id="comments" rows="5"
+placeholder="Add maintenance comments here..."></textarea>
+
+<button class="completeBtn"
+onclick="saveChecklist()">
+✔ Complete Maintenance
+</button>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+<script>
+
+// =========================================
+// SUPABASE CONFIGURATION
+// =========================================
+
+const SUPABASE_URL =
+'https://ekcwmofllelccgobnnpc.supabase.co';
+
+const SUPABASE_ANON_KEY =
+'sb_publishable_kk3BNXcUy-GhJ1aetFIbXw_IsR4P0Kr';
+
+const supabaseClient =
+supabase.createClient(
+SUPABASE_URL,
+SUPABASE_ANON_KEY
+);
+
+// =========================================
+// HARDCODED USERS
+// =========================================
+
+const users = {
+
+Nilupul:'123456',
+Vimukthi:'456789'
+
+};
+
+let currentUser = '';
+let selectedPlanId = '';
+let selectedMachine = '';
+
+// =========================================
+// LOGIN FUNCTION
+// =========================================
+
+function login(){
+
+const username =
+document.getElementById('username').value;
+
+const password =
+document.getElementById('password').value;
+
+if(users[username] === password){
+
+currentUser = username;
+
+
+document.getElementById('loginScreen')
+.classList.add('hidden');
+
+
+document.getElementById('appScreen')
+.classList.remove('hidden');
+
+loadTasks('all');
+
+}
+else{
+alert('Invalid Username or Password');
+}
+}
+
+// =========================================
+// CHECKLIST ITEMS
+// =========================================
+
+const checklistItems = [
+"උෂ්ණත්ව මීටරයේ ක්‍රියාකාරීත්වය හා නිරවද්‍යතාවය",
+"කාලය සටහන් කිරීමේ මීටරයේ ක්‍රියාකාරීත්වය හා නිරවද්‍යතාවය",
+"ජල මීටරයේ ක්‍රියාකාරීත්වය හා නිරවද්‍යතාවය",
+"සයිරනය නියමිත පරිදි ක්‍රියාත්මක වේ",
+"දොර මුද්‍රාව හොඳ තත්වයේ පවතී",
+"හයිඩ්‍රොලික් තෙල් මට්ටම නිසියාකාරව පවතී",
+"යන්ත්‍රයට වාෂ්ප සපයන නළ නිසියාකාරව පවතී",
+"බෙල්ට් සහ වේන් වල තත්වය යහපත් වේ",
+"ජලය සපයන නළ වල තත්වය යහපත් වේ",
+"කුමන හෝ ලිහිසි තෙල් කාන්දුවක් නොමැත"
+];
+
+const answers = {};
+
+// =========================================
+// LOAD TASKS
+// =========================================
+
+async function loadTasks(filter){
+
+let query = supabaseClient
+.from('maintenance_plan')
+.select('*')
+.order('planned_date');
+
+if(filter === 'week'){
+
+const today = new Date();
+
+const start = new Date(today);
+start.setDate(today.getDate() - today.getDay());
+
+const end = new Date(start);
+end.setDate(start.getDate() + 6);
+
+query = query
+.eq('status','Pending')
+.gte('planned_date',start.toISOString())
+.lte('planned_date',end.toISOString());
+
+}
+
+const {data,error} = await query;
+
+if(error){
+alert(error.message);
+return;
+}
+
+renderDashboard(data);
+renderTasks(data);
+}
+
+// =========================================
+// DASHBOARD COUNTS
+// =========================================
+
+function renderDashboard(data){
+
+const planned =
+data.filter(x=>x.service_type==='Planned').length;
+
+const scheduled =
+data.filter(x=>x.service_type==='Scheduled').length;
+
+const pending =
+data.filter(x=>x.status==='Pending').length;
+
+const completed =
+data.filter(x=>x.status==='Completed').length;
+
+
+document.getElementById('plannedCount').innerText = planned;
+document.getElementById('scheduledCount').innerText = scheduled;
+document.getElementById('pendingCount').innerText = pending;
+document.getElementById('completedCount').innerText = completed;
+}
+
+// =========================================
+// GET WEEK RANGE
+// =========================================
+
+function getWeekRange(dateString){
+
+const date = new Date(dateString);
+
+const start = new Date(date);
+start.setDate(date.getDate() - date.getDay());
+
+const end = new Date(start);
+end.setDate(start.getDate() + 6);
+
+return start.toLocaleDateString() +
+' - ' +
+end.toLocaleDateString();
+}
+
+// =========================================
+// RENDER TASKS
+// =========================================
+
+function renderTasks(data){
+
+const container =
+document.getElementById('taskList');
+
+container.innerHTML = '';
+
+data.forEach(item=>{
+
+container.innerHTML += `
+
+<div class="taskCard"
+onclick="openChecklist('${item.planid}','${item.machine_no}')">
+
+<h3>${item.planid}</h3>
+
+<p><strong>Machine :</strong> ${item.machine_no}</p>
+
+<p><strong>Service :</strong> ${item.service_type}</p>
+
+<p>
+<span class="badge ${item.status==='Completed'?'completed':'pending'}">
+${item.status}
+</span>
+</p>
+
+<p><strong>Week :</strong> ${item.year_week}</p>
+
+<p><strong>Week Range :</strong>
+${getWeekRange(item.planned_date)}</p>
+
+</div>
+
+`;
+
+});
+}
+
+// =========================================
+// OPEN CHECKLIST
+// =========================================
+
+function openChecklist(planId,machine){
+
+selectedPlanId = planId;
+selectedMachine = machine;
+
+
+document.getElementById('machineTitle')
+.innerText = 'Machine : ' + machine;
+
+
+document.getElementById('planTitle')
+.innerText = 'Plan ID : ' + planId;
+
+
+document.getElementById('checklistSection')
+.classList.remove('hidden');
+
+renderChecklist();
+
+window.scrollTo(0,document.body.scrollHeight);
+}
+
+// =========================================
+// RENDER CHECKLIST
+// =========================================
+
+function renderChecklist(){
+
+const container =
+document.getElementById('checklistContainer');
+
+container.innerHTML = '';
+
+checklistItems.forEach((item,index)=>{
+
+container.innerHTML += `
+
+<div class="card">
+
+<div>${item}</div>
+
+<div class="actions">
+
+<button class="yesBtn"
+onclick="selectAnswer(${index},'ඔව්',this)">
+ඔව්
+</button>
+
+<button class="noBtn"
+onclick="selectAnswer(${index},'නැත',this)">
+නැත
+</button>
+
+<button class="naBtn"
+onclick="selectAnswer(${index},'අදාල නැත',this)">
+N/A
+</button>
+
+</div>
+
+</div>
+
+`;
+
+});
+}
+
+// =========================================
+// SELECT CHECKLIST ANSWER
+// =========================================
+
+function selectAnswer(index,value,btn){
+
+answers[index] = value;
+
+const parent = btn.parentElement;
+
+parent.querySelectorAll('button')
+.forEach(x=>x.classList.remove('selected'));
+
+btn.classList.add('selected');
+}
+
+// =========================================
+// SAVE CHECKLIST
+// =========================================
+
+async function saveChecklist(){
+
+const comments =
+document.getElementById('comments').value;
+
+for(let i=0;i<checklistItems.length;i++){
+
+await supabaseClient
+.from('maintenance_plan_checklist')
+.insert({
+
+planid:selectedPlanId,
+machine_no:selectedMachine,
+checked_by:currentUser,
+attribute_name:checklistItems[i],
+result_value:answers[i] || 'අදාල නැත'
+
+});
+
+}
+
+await supabaseClient
+.from('maintenance_plan')
+.update({
+
+status:'Completed',
+completed_by:currentUser,
+completed_date:new Date().toISOString(),
+comments:comments
+
+})
+.eq('planid',selectedPlanId);
+
+alert('Maintenance Completed Successfully');
+
+
+document.getElementById('checklistSection')
+.classList.add('hidden');
+
+loadTasks('all');
+}
+
+</script>
+
+</body>
+</html>
+
